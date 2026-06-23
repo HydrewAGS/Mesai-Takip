@@ -457,6 +457,47 @@
   #edit-modal .modal-subtitle {
     font-size: .8rem; color: var(--muted); margin-bottom: 1.5rem;
   }
+  #edit-label:focus, #edit-note:focus {
+    border-color: var(--amber);
+  }
+
+  /* ── SCHEDULE MODAL ── */
+  .day-btn {
+    padding: 7px 14px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--muted);
+    font-family: 'Inter', sans-serif;
+    font-size: .8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .day-btn.active {
+    background: var(--amber);
+    border-color: var(--amber);
+    color: #0B1929;
+  }
+  .day-btn:hover:not(.active) {
+    border-color: var(--amber);
+    color: var(--amber);
+  }
+  .sched-input {
+    width: 100%;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .9rem;
+    outline: none;
+    box-sizing: border-box;
+    transition: border-color .15s;
+  }
+  .sched-input:focus { border-color: var(--amber); }
+  #schedule-overlay.open { display: flex; }
 
   .modal-field { margin-bottom: 1.25rem; }
   .modal-field label {
@@ -773,6 +814,62 @@
           <div style="font-size:.75rem;color:var(--muted);margin-top:1px;">Excel (.xlsx) formatında</div>
         </div>
       </button>
+      <div style="height:1px;background:var(--border);margin:4px 8px;"></div>
+      <div style="font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;
+                  letter-spacing:.8px;padding:6px 10px 4px;">Sistem Kaydı</div>
+      <button onclick="exportJSON()" style="
+        width:100%;background:none;border:none;color:var(--text);
+        padding:10px 12px;text-align:left;cursor:pointer;border-radius:8px;
+        font-size:.88rem;display:flex;align-items:center;gap:10px;
+        transition:background .15s;
+      " onmouseover="this.style.background='var(--panel)'" onmouseout="this.style.background='none'">
+        <span style="font-size:1.1rem;">💾</span>
+        <div>
+          <div style="font-weight:600;">Yedeği Dışa Aktar</div>
+          <div style="font-size:.75rem;color:var(--muted);margin-top:1px;">Tüm veriler JSON olarak</div>
+        </div>
+      </button>
+      <button onclick="triggerImportJSON()" style="
+        width:100%;background:none;border:none;color:var(--text);
+        padding:10px 12px;text-align:left;cursor:pointer;border-radius:8px;
+        font-size:.88rem;display:flex;align-items:center;gap:10px;
+        transition:background .15s;
+      " onmouseover="this.style.background='var(--panel)'" onmouseout="this.style.background='none'">
+        <span style="font-size:1.1rem;">📂</span>
+        <div>
+          <div style="font-weight:600;">Yedeği İçe Aktar</div>
+          <div style="font-size:.75rem;color:var(--muted);margin-top:1px;">JSON dosyasından yükle</div>
+        </div>
+      </button>
+      <input type="file" id="json-import-input" accept=".json" style="display:none" onchange="importJSON(event)">
+      <div style="height:1px;background:var(--border);margin:4px 8px;"></div>
+      <div style="font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;
+                  letter-spacing:.8px;padding:6px 10px 4px;">Çalışma Düzeni</div>
+      <button onclick="openWorkScheduleModal()" id="schedule-settings-btn" style="
+        width:100%;background:none;border:none;color:var(--text);
+        padding:10px 12px;text-align:left;cursor:pointer;border-radius:8px;
+        font-size:.88rem;display:flex;align-items:center;gap:10px;
+        transition:background .15s;
+      " onmouseover="this.style.background='var(--panel)'" onmouseout="this.style.background='none'">
+        <span style="font-size:1.1rem;">🕐</span>
+        <div>
+          <div style="font-weight:600;" id="schedule-btn-label">Mesai Saatlerini Ayarla</div>
+          <div style="font-size:.75rem;color:var(--muted);margin-top:1px;" id="schedule-btn-sub">Henüz ayarlanmadı</div>
+        </div>
+      </button>
+      <div style="height:1px;background:var(--border);margin:4px 8px;"></div>
+      <button onclick="openResetModal()" style="
+        width:100%;background:none;border:none;color:var(--red);
+        padding:10px 12px;text-align:left;cursor:pointer;border-radius:8px;
+        font-size:.88rem;display:flex;align-items:center;gap:10px;
+        transition:background .15s;
+      " onmouseover="this.style.background='rgba(224,92,92,.08)'" onmouseout="this.style.background='none'">
+        <span style="font-size:1.1rem;">🗑️</span>
+        <div>
+          <div style="font-weight:600;">Tüm Verileri Sıfırla</div>
+          <div style="font-size:.75rem;color:var(--muted);margin-top:1px;">Tüm kayıtları kalıcı olarak sil</div>
+        </div>
+      </button>
     </div>
   </div>
 </header>
@@ -966,6 +1063,197 @@
 
 </main>
 
+<!-- ── MESAİ SAATLERİ MODAL ── -->
+<div id="schedule-overlay" style="
+  display:none; position:fixed; inset:0; z-index:600;
+  background:rgba(0,0,0,.7); backdrop-filter:blur(6px);
+  align-items:center; justify-content:center; padding:1rem;
+">
+  <div id="schedule-modal" style="
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:18px; padding:0; width:100%; max-width:500px;
+    box-shadow:0 24px 60px rgba(0,0,0,.6);
+    animation:modal-in .22s cubic-bezier(.34,1.56,.64,1);
+    max-height:90vh; overflow-y:auto;
+  ">
+    <!-- Başlık -->
+    <div style="
+      padding:1.5rem 1.75rem 1.25rem;
+      border-bottom:1px solid var(--border);
+      display:flex; align-items:center; gap:12px;
+    ">
+      <span style="font-size:1.6rem;">🕐</span>
+      <div>
+        <div style="font-weight:700;font-size:1.05rem;">Mesai Saatleri</div>
+        <div style="font-size:.8rem;color:var(--muted);margin-top:2px;" id="schedule-modal-sub">
+          Çalışma düzeninizi bir kez girin.
+        </div>
+      </div>
+    </div>
+
+    <!-- İçerik -->
+    <div style="padding:1.5rem 1.75rem;" id="schedule-modal-body">
+
+      <!-- Kilitli görünüm (ayar yapılmışsa) -->
+      <div id="schedule-locked-view" style="display:none;">
+        <div style="
+          background:var(--panel); border:1px solid var(--border);
+          border-radius:12px; padding:1.25rem 1.5rem; margin-bottom:1rem;
+          display:flex; align-items:center; justify-content:space-between; gap:12px;
+        ">
+          <div style="display:flex; align-items:center; gap:12px;">
+            <span id="schedule-lock-icon" style="font-size:1.5rem;">🔒</span>
+            <div>
+              <div style="font-weight:600; font-size:.9rem;" id="schedule-lock-title">Ayarlar kilitlendi</div>
+              <div style="font-size:.78rem; color:var(--muted); margin-top:3px;" id="schedule-lock-sub">
+                Mesai saatleriniz kaydedildi.
+              </div>
+            </div>
+          </div>
+          <div id="schedule-edit-rights" style="
+            font-size:.75rem; font-weight:600; color:var(--amber);
+            background:rgba(245,166,35,.1); border:1px solid rgba(245,166,35,.25);
+            border-radius:20px; padding:4px 12px; white-space:nowrap;
+          "></div>
+        </div>
+        <div id="schedule-locked-summary" style="
+          background:var(--panel); border:1px solid var(--border);
+          border-radius:12px; padding:1.25rem 1.5rem; margin-bottom:1rem;
+          font-size:.875rem; line-height:1.8;
+        "></div>
+        <!-- Hak bitince görünen kapat butonu -->
+        <div id="schedule-no-rights-close" style="display:none; justify-content:flex-start;">
+          <button class="btn btn-secondary" onclick="closeScheduleModal()" style="min-width:unset;padding:13px 18px;">✕ Kapat</button>
+        </div>
+        <div id="schedule-unlock-btn-wrap" style="display:none; justify-content:space-between; align-items:center;">
+          <button class="btn btn-secondary" onclick="closeScheduleModal()" style="min-width:unset;padding:13px 18px;">✕ Kapat</button>
+          <button class="btn btn-secondary" onclick="unlockScheduleForEdit()" style="gap:8px;">
+            ✏️ Düzenle <span id="schedule-rights-badge" style="
+              background:var(--amber); color:#0B1929; border-radius:20px;
+              padding:1px 8px; font-size:.72rem; font-weight:700;
+            "></span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Düzenlenebilir form -->
+      <div id="schedule-edit-view">
+
+        <!-- Hafta içi -->
+        <div style="margin-bottom:1.5rem;">
+          <div style="
+            font-size:.72rem; font-weight:700; text-transform:uppercase;
+            letter-spacing:1.5px; color:var(--muted); margin-bottom:.75rem;
+            padding-bottom:.5rem; border-bottom:1px solid var(--border);
+          ">Hafta İçi Günler</div>
+          <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:1rem;" id="weekday-btns">
+            <button type="button" class="day-btn active" data-day="1" onclick="toggleDay(this)">Pzt</button>
+            <button type="button" class="day-btn active" data-day="2" onclick="toggleDay(this)">Sal</button>
+            <button type="button" class="day-btn active" data-day="3" onclick="toggleDay(this)">Çar</button>
+            <button type="button" class="day-btn active" data-day="4" onclick="toggleDay(this)">Per</button>
+            <button type="button" class="day-btn active" data-day="5" onclick="toggleDay(this)">Cum</button>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:.75rem;">
+            <div>
+              <label style="
+                display:block; font-size:.72rem; font-weight:600;
+                text-transform:uppercase; letter-spacing:1.5px;
+                color:var(--muted); margin-bottom:6px;
+              ">Giriş Saati</label>
+              <input type="time" id="wd-start" value="09:00" class="sched-input">
+            </div>
+            <div>
+              <label style="
+                display:block; font-size:.72rem; font-weight:600;
+                text-transform:uppercase; letter-spacing:1.5px;
+                color:var(--muted); margin-bottom:6px;
+              ">Çıkış Saati</label>
+              <input type="time" id="wd-end" value="18:00" class="sched-input">
+            </div>
+          </div>
+        </div>
+
+        <!-- Hafta sonu -->
+        <div style="margin-bottom:1.5rem;">
+          <div style="
+            font-size:.72rem; font-weight:700; text-transform:uppercase;
+            letter-spacing:1.5px; color:var(--muted); margin-bottom:.75rem;
+            padding-bottom:.5rem; border-bottom:1px solid var(--border);
+            display:flex; align-items:center; justify-content:space-between;
+          ">
+            <span>Hafta Sonu</span>
+            <label style="
+              display:flex; align-items:center; gap:6px;
+              cursor:pointer; font-size:.75rem; letter-spacing:0;
+              text-transform:none; font-weight:500; color:var(--text);
+            ">
+              <input type="checkbox" id="we-enabled" onchange="toggleWeekend()" style="
+                accent-color:var(--amber); width:14px; height:14px; cursor:pointer;
+              ">
+              Hafta sonu da çalışıyorum
+            </label>
+          </div>
+          <div id="we-fields" style="display:none;">
+            <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:1rem;" id="weekend-btns">
+              <button type="button" class="day-btn" data-day="6" onclick="toggleDay(this)">Cmt</button>
+              <button type="button" class="day-btn" data-day="0" onclick="toggleDay(this)">Paz</button>
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:.75rem;">
+              <div>
+                <label style="
+                  display:block; font-size:.72rem; font-weight:600;
+                  text-transform:uppercase; letter-spacing:1.5px;
+                  color:var(--muted); margin-bottom:6px;
+                ">Giriş Saati</label>
+                <input type="time" id="we-start" value="09:00" class="sched-input">
+              </div>
+              <div>
+                <label style="
+                  display:block; font-size:.72rem; font-weight:600;
+                  text-transform:uppercase; letter-spacing:1.5px;
+                  color:var(--muted); margin-bottom:6px;
+                ">Çıkış Saati</label>
+                <input type="time" id="we-end" value="17:00" class="sched-input">
+              </div>
+            </div>
+          </div>
+          <div id="we-disabled-msg" style="
+            font-size:.82rem; color:var(--muted); font-style:italic;
+          ">Hafta sonu çalışmıyorum.</div>
+        </div>
+
+        <!-- Uyarı kutusu -->
+        <div style="
+          background:rgba(245,166,35,.08); border:1px solid rgba(245,166,35,.3);
+          border-radius:10px; padding:1rem 1.25rem; margin-bottom:1.5rem;
+          display:flex; gap:10px; align-items:flex-start;
+        ">
+          <span style="font-size:1.1rem; flex-shrink:0;">⚠️</span>
+          <div style="font-size:.82rem; color:var(--text); line-height:1.55;">
+            <strong>Kaydettikten sonra 3 değişiklik hakkınız olacak.</strong><br>
+            Başarım sistemi ve istatistikler bu bilgilere göre hesaplanır.
+            Devam etmeden önce doğru girdiğinizden emin olun.
+          </div>
+        </div>
+
+        <!-- Hata mesajı -->
+        <div id="schedule-error" style="
+          display:none; background:rgba(224,92,92,.1); border:1px solid var(--red);
+          border-radius:8px; padding:.75rem 1rem; margin-bottom:1rem;
+          font-size:.82rem; color:var(--red);
+        "></div>
+
+        <!-- Butonlar -->
+        <div style="display:flex; gap:10px; justify-content:space-between; align-items:center;">
+          <button class="btn btn-secondary" onclick="closeScheduleModal()" style="min-width:unset;padding:13px 18px;">✕ Kapat</button>
+          <button class="btn btn-primary" onclick="saveWorkSchedule()">🔒 Kaydet ve Kilitle</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
 <div id="edit-overlay" onclick="closeEditModal(event)">
   <div id="edit-modal">
     <h3 id="edit-modal-title">Kaydı Düzenle</h3>
@@ -978,6 +1266,25 @@
     <div class="modal-field">
       <label>Saat</label>
       <input type="time" id="edit-time" step="60">
+    </div>
+
+    <div class="modal-field" id="edit-label-field" style="display:none">
+      <label>Mola Adı <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);font-size:.7rem;">(isteğe bağlı)</span></label>
+      <input type="text" id="edit-label" placeholder="ör. Öğle molası, Kahve molası…" style="
+        width:100%;background:var(--panel);border:1px solid var(--border);
+        color:var(--text);border-radius:8px;padding:10px 12px;
+        font-family:inherit;font-size:.875rem;outline:none;box-sizing:border-box;
+        transition:border-color .15s;
+      ">
+    </div>
+    <div class="modal-field" id="edit-note-field" style="display:none">
+      <label>Açıklama <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);font-size:.7rem;">(isteğe bağlı)</span></label>
+      <textarea id="edit-note" rows="2" placeholder="Bu mola hakkında not ekleyin…" style="
+        width:100%;background:var(--panel);border:1px solid var(--border);
+        color:var(--text);border-radius:8px;padding:10px 12px;
+        font-family:inherit;font-size:.875rem;outline:none;resize:vertical;
+        box-sizing:border-box;transition:border-color .15s;
+      "></textarea>
     </div>
 
     <div class="modal-warning" id="edit-warning"></div>
@@ -1264,15 +1571,25 @@ function renderTodayLog() {
   el.innerHTML = recs.map(r => {
     const t = typeLabels[r.type];
     if (!t) return '';
-    return `<div class="log-item">
-      <div class="log-type">
-        <span class="log-badge ${t.cls}"></span>
-        <span class="log-type-text">${t.icon} ${t.label}</span>
+    const isMola = r.type === 'mola-bas' || r.type === 'mola-bit';
+    const displayName = (isMola && r.label && r.label.trim())
+      ? `${t.icon} ${r.label}`
+      : `${t.icon} ${t.label}`;
+    const noteHtml = (isMola && r.note && r.note.trim())
+      ? `<div style="font-size:.75rem;color:var(--muted);margin-top:3px;padding-left:18px;">${r.note}</div>`
+      : '';
+    return `<div class="log-item" style="${noteHtml ? 'flex-direction:column;align-items:stretch;gap:4px;' : ''}">
+      <div style="display:flex;align-items:center;justify-content:space-between;width:100%;">
+        <div class="log-type">
+          <span class="log-badge ${t.cls}"></span>
+          <span class="log-type-text">${displayName}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="log-time">${r.time}</span>
+          <button class="edit-btn" onclick="openEditModal(${r.id})" title="Düzenle">✏️</button>
+        </div>
       </div>
-      <div style="display:flex;align-items:center;gap:8px">
-        <span class="log-time">${r.time}</span>
-        <button class="edit-btn" onclick="openEditModal(${r.id})" title="Düzenle">✏️</button>
-      </div>
+      ${noteHtml}
     </div>`;
   }).join('');
 }
@@ -1288,15 +1605,24 @@ function renderBreakLog() {
   el.innerHTML = recs.map(r => {
     const t = typeLabels[r.type];
     if (!t) return '';
-    return `<div class="log-item">
-      <div class="log-type">
-        <span class="log-badge ${t.cls}"></span>
-        <span class="log-type-text">${t.icon} ${t.label}</span>
+    const displayName = (r.label && r.label.trim())
+      ? `${t.icon} ${r.label}`
+      : `${t.icon} ${t.label}`;
+    const noteHtml = (r.note && r.note.trim())
+      ? `<div style="font-size:.75rem;color:var(--muted);margin-top:3px;padding-left:18px;">${r.note}</div>`
+      : '';
+    return `<div class="log-item" style="flex-direction:column;align-items:stretch;gap:4px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div class="log-type">
+          <span class="log-badge ${t.cls}"></span>
+          <span class="log-type-text">${displayName}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="log-time">${r.time}</span>
+          <button class="edit-btn" onclick="openEditModal(${r.id})" title="Düzenle">✏️</button>
+        </div>
       </div>
-      <div style="display:flex;align-items:center;gap:8px">
-        <span class="log-time">${r.time}</span>
-        <button class="edit-btn" onclick="openEditModal(${r.id})" title="Düzenle">✏️</button>
-      </div>
+      ${noteHtml}
     </div>`;
   }).join('');
 }
@@ -1330,10 +1656,17 @@ function renderRecords() {
         ${recs.map(r => {
           const t = typeLabels[r.type];
           if (!t) return '';
+          const isMolaRec = r.type === 'mola-bas' || r.type === 'mola-bit';
+          const pillLabel = (isMolaRec && r.label && r.label.trim()) ? r.label : t.label;
+          const noteCell  = (isMolaRec && r.note && r.note.trim())
+            ? `<div style="font-size:.72rem;color:var(--muted);margin-top:2px;">${r.note}</div>` : '';
           return `<tr>
             <td class="mono">${r.date}</td>
             <td class="mono">${r.time}</td>
-            <td><span class="type-pill ${t.cls}">${t.icon} ${t.label}</span></td>
+            <td>
+              <span class="type-pill ${t.cls}">${t.icon} ${pillLabel}</span>
+              ${noteCell}
+            </td>
             <td>
               <div class="action-btns">
                 <button class="edit-btn" onclick="openEditModal(${r.id})" title="Düzenle">✏️</button>
@@ -1407,11 +1740,21 @@ function openEditModal(id) {
 
   const t = typeLabels[rec.type];
   if (!t) return;
-  document.getElementById('edit-modal-title').textContent   = `${t.icon} ${t.label} — Düzenle`;
+  document.getElementById('edit-modal-title').textContent    = `${t.icon} ${t.label} — Düzenle`;
   document.getElementById('edit-modal-subtitle').textContent = 'Kaydedilen saati ve tarihi değiştirebilirsiniz.';
   document.getElementById('edit-date').value = rec.date;
   document.getElementById('edit-time').value = rec.time.slice(0,5);
   document.getElementById('edit-warning').classList.remove('show');
+
+  // Mola kayıtları için ek alanlar
+  const isMola = rec.type === 'mola-bas' || rec.type === 'mola-bit';
+  document.getElementById('edit-label-field').style.display = isMola ? 'block' : 'none';
+  document.getElementById('edit-note-field').style.display  = isMola ? 'block' : 'none';
+  if (isMola) {
+    document.getElementById('edit-label').value = rec.label || '';
+    document.getElementById('edit-note').value  = rec.note  || '';
+  }
+
   document.getElementById('edit-overlay').classList.add('open');
 }
 
@@ -1454,6 +1797,14 @@ function saveEdit() {
   rec.ts   = newTs;
   rec.date = newDateKey;
   rec.time = `${pad(h)}:${pad(m)}:00`;
+
+  // Mola ise label ve note alanlarını da kaydet
+  if (rec.type === 'mola-bas' || rec.type === 'mola-bit') {
+    const lv = document.getElementById('edit-label').value.trim();
+    const nv = document.getElementById('edit-note').value.trim();
+    rec.label = lv || '';
+    rec.note  = nv || '';
+  }
 
   if (state.isWorking) {
     const girisRecords = state.records.filter(r => r && r.date === dateKey() && r.type === 'giris').sort((a, b) => a.ts - b.ts);
@@ -2057,6 +2408,406 @@ function toggleTheme() {
 })();
 
 
+// ── MESAİ SAATLERİ ────────────────────────────────────────────────
+
+function loadWorkSchedule() {
+  try {
+    return JSON.parse(localStorage.getItem('lufer_work_schedule') || 'null');
+  } catch(e) { return null; }
+}
+
+function updateScheduleButtonUI() {
+  var sched = loadWorkSchedule();
+  var lbl = document.getElementById('schedule-btn-label');
+  var sub = document.getElementById('schedule-btn-sub');
+  if (!lbl || !sub) return;
+  if (sched && sched.locked) {
+    lbl.textContent = 'Mesai Saatleri';
+    var remaining = typeof sched.editRights === 'number' ? sched.editRights : 0;
+    if (remaining > 0) {
+      sub.textContent = '✏️ ' + remaining + ' düzenleme hakkı kaldı';
+    } else {
+      sub.textContent = '🔒 Kalıcı olarak kilitlendi';
+    }
+  } else {
+    lbl.textContent = 'Mesai Saatlerini Ayarla';
+    sub.textContent = 'Henüz ayarlanmadı';
+  }
+}
+
+function openWorkScheduleModal() {
+  document.getElementById('settings-panel').style.display = 'none';
+  var sched = loadWorkSchedule();
+  var overlay = document.getElementById('schedule-overlay');
+
+  if (sched && sched.locked) {
+    // Kilitli görünüm
+    document.getElementById('schedule-edit-view').style.display   = 'none';
+    document.getElementById('schedule-locked-view').style.display = 'block';
+
+    var remaining = typeof sched.editRights === 'number' ? sched.editRights : 0;
+
+    // Başlık ve sub güncelle
+    if (remaining > 0) {
+      document.getElementById('schedule-lock-icon').textContent = '🔓';
+      document.getElementById('schedule-lock-title').textContent = 'Ayarlar kilitli';
+      document.getElementById('schedule-lock-sub').textContent = 'Kalan düzenleme hakkınızla değişiklik yapabilirsiniz.';
+      document.getElementById('schedule-modal-sub').textContent = 'Ayarlarınız kaydedilmiştir.';
+      document.getElementById('schedule-edit-rights').textContent = remaining + ' düzenleme hakkı kaldı';
+      document.getElementById('schedule-edit-rights').style.display = 'block';
+      document.getElementById('schedule-unlock-btn-wrap').style.display = 'flex';
+      document.getElementById('schedule-no-rights-close').style.display = 'none';
+      document.getElementById('schedule-rights-badge').textContent = remaining;
+    } else {
+      document.getElementById('schedule-lock-icon').textContent = '🔒';
+      document.getElementById('schedule-lock-title').textContent = 'Ayarlar kalıcı olarak kilitlendi';
+      document.getElementById('schedule-lock-sub').textContent = 'Tüm düzenleme haklarınız kullanıldı.';
+      document.getElementById('schedule-modal-sub').textContent = 'Ayarlarınız kilitlenmiştir.';
+      document.getElementById('schedule-edit-rights').textContent = 'Düzenleme hakkı kalmadı';
+      document.getElementById('schedule-edit-rights').style.color = 'var(--muted)';
+      document.getElementById('schedule-edit-rights').style.background = 'var(--panel)';
+      document.getElementById('schedule-edit-rights').style.borderColor = 'var(--border)';
+      document.getElementById('schedule-edit-rights').style.display = 'block';
+      document.getElementById('schedule-unlock-btn-wrap').style.display = 'none';
+      document.getElementById('schedule-no-rights-close').style.display = 'flex';
+    }
+
+    // Özet oluştur
+    var DAY_NAMES = ['Pazar','Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi'];
+    var wdDays = (sched.weekdays || []).map(function(d){ return DAY_NAMES[d]; }).join(', ');
+    var weDays = (sched.weekendDays || []).map(function(d){ return DAY_NAMES[d]; }).join(', ');
+    var html = '';
+    html += '<div style="margin-bottom:.6rem;"><span style="color:var(--muted);font-size:.75rem;">HAFTAİÇİ GÜNLER</span><br>';
+    html += '<strong>' + (wdDays || '—') + '</strong></div>';
+    html += '<div style="margin-bottom:.6rem;"><span style="color:var(--muted);font-size:.75rem;">HAFTAİÇİ SAATLER</span><br>';
+    html += '<strong>' + sched.wdStart + ' – ' + sched.wdEnd + '</strong></div>';
+    if (sched.weekendEnabled && weDays) {
+      html += '<div style="margin-bottom:.6rem;"><span style="color:var(--muted);font-size:.75rem;">HAFTA SONU GÜNLER</span><br>';
+      html += '<strong>' + weDays + '</strong></div>';
+      html += '<div><span style="color:var(--muted);font-size:.75rem;">HAFTA SONU SAATLERİ</span><br>';
+      html += '<strong>' + sched.weStart + ' – ' + sched.weEnd + '</strong></div>';
+    } else {
+      html += '<div><span style="color:var(--muted);font-size:.75rem;">HAFTA SONU</span><br>';
+      html += '<strong style="color:var(--muted);">Çalışılmıyor</strong></div>';
+    }
+    document.getElementById('schedule-locked-summary').innerHTML = html;
+  } else {
+    // Düzenlenebilir form
+    document.getElementById('schedule-edit-view').style.display   = 'block';
+    document.getElementById('schedule-locked-view').style.display = 'none';
+    document.getElementById('schedule-modal-sub').textContent = 'Çalışma düzeninizi bir kez girin — bu ayarlar değiştirilemez.';
+    document.getElementById('schedule-error').style.display = 'none';
+    toggleWeekend();
+  }
+
+  overlay.style.display = 'flex';
+}
+
+function closeScheduleModal() {
+  document.getElementById('schedule-overlay').style.display = 'none';
+}
+
+function toggleDay(btn) {
+  btn.classList.toggle('active');
+}
+
+function toggleWeekend() {
+  var enabled = document.getElementById('we-enabled').checked;
+  document.getElementById('we-fields').style.display      = enabled ? 'block' : 'none';
+  document.getElementById('we-disabled-msg').style.display = enabled ? 'none'  : 'block';
+}
+
+function unlockScheduleForEdit() {
+  var sched = loadWorkSchedule();
+  var remaining = sched && typeof sched.editRights === 'number' ? sched.editRights : 0;
+  if (remaining <= 0) return;
+
+  // Formu mevcut değerlerle doldur
+  // Hafta içi günler
+  document.querySelectorAll('#weekday-btns .day-btn').forEach(function(b) {
+    var day = parseInt(b.getAttribute('data-day'));
+    if ((sched.weekdays || []).indexOf(day) >= 0) {
+      b.classList.add('active');
+    } else {
+      b.classList.remove('active');
+    }
+  });
+  document.getElementById('wd-start').value = sched.wdStart || '09:00';
+  document.getElementById('wd-end').value   = sched.wdEnd   || '18:00';
+
+  // Hafta sonu
+  var weEnabled = !!sched.weekendEnabled;
+  document.getElementById('we-enabled').checked = weEnabled;
+  if (weEnabled) {
+    document.querySelectorAll('#weekend-btns .day-btn').forEach(function(b) {
+      var day = parseInt(b.getAttribute('data-day'));
+      if ((sched.weekendDays || []).indexOf(day) >= 0) {
+        b.classList.add('active');
+      } else {
+        b.classList.remove('active');
+      }
+    });
+    document.getElementById('we-start').value = sched.weStart || '09:00';
+    document.getElementById('we-end').value   = sched.weEnd   || '17:00';
+  }
+  toggleWeekend();
+
+  // Uyarı kutusunu güncelle
+  var warnEl = document.querySelector('#schedule-edit-view [style*="rgba(245,166,35"]');
+  if (warnEl) {
+    warnEl.querySelector('strong').textContent =
+      'Bu düzenlemeyi kaydettiğinizde ' + remaining + ' hakkınızdan 1 tanesi kullanılacak.';
+  }
+
+  // Kaydet butonunu güncelle
+  var saveBtn = document.querySelector('#schedule-edit-view .btn-primary');
+  if (saveBtn) saveBtn.textContent = '💾 Güncelle (' + remaining + ' hak kaldı)';
+
+  document.getElementById('schedule-error').style.display = 'none';
+  document.getElementById('schedule-locked-view').style.display = 'none';
+  document.getElementById('schedule-edit-view').style.display   = 'block';
+  document.getElementById('schedule-modal-sub').textContent =
+    'Değişiklik yapın — ' + remaining + ' düzenleme hakkınızdan 1 tanesi kullanılacak.';
+}
+
+function saveWorkSchedule() {
+  // Seçili günleri topla
+  var wdSelected = [];
+  document.querySelectorAll('#weekday-btns .day-btn.active').forEach(function(b) {
+    wdSelected.push(parseInt(b.getAttribute('data-day')));
+  });
+
+  var weEnabled = document.getElementById('we-enabled').checked;
+  var weSelected = [];
+  if (weEnabled) {
+    document.querySelectorAll('#weekend-btns .day-btn.active').forEach(function(b) {
+      weSelected.push(parseInt(b.getAttribute('data-day')));
+    });
+  }
+
+  var wdStart = document.getElementById('wd-start').value;
+  var wdEnd   = document.getElementById('wd-end').value;
+  var weStart = document.getElementById('we-start').value;
+  var weEnd   = document.getElementById('we-end').value;
+
+  // Doğrulama
+  var errEl = document.getElementById('schedule-error');
+  if (wdSelected.length === 0) {
+    errEl.textContent = 'En az bir hafta içi gün seçmelisiniz.';
+    errEl.style.display = 'block'; return;
+  }
+  if (!wdStart || !wdEnd) {
+    errEl.textContent = 'Hafta içi giriş ve çıkış saatlerini girin.';
+    errEl.style.display = 'block'; return;
+  }
+  if (wdStart >= wdEnd) {
+    errEl.textContent = 'Giriş saati çıkış saatinden önce olmalıdır.';
+    errEl.style.display = 'block'; return;
+  }
+  if (weEnabled && weSelected.length === 0) {
+    errEl.textContent = 'Hafta sonu için en az bir gün seçin ya da seçeneği kaldırın.';
+    errEl.style.display = 'block'; return;
+  }
+  if (weEnabled && (!weStart || !weEnd)) {
+    errEl.textContent = 'Hafta sonu giriş ve çıkış saatlerini girin.';
+    errEl.style.display = 'block'; return;
+  }
+  if (weEnabled && weStart >= weEnd) {
+    errEl.textContent = 'Hafta sonu giriş saati çıkış saatinden önce olmalıdır.';
+    errEl.style.display = 'block'; return;
+  }
+  errEl.style.display = 'none';
+
+  // Onay
+  var DAY_NAMES = ['Pazar','Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi'];
+  var wdNames = wdSelected.map(function(d){ return DAY_NAMES[d]; }).join(', ');
+  var existing2 = loadWorkSchedule();
+  var isEdit = existing2 && existing2.locked;
+  var rightsLeft = isEdit ? Math.max(0, (typeof existing2.editRights === 'number' ? existing2.editRights : 0) - 1) : 2;
+  var msg = isEdit
+    ? '✏️ Ayarları güncellemek istediğinize emin misiniz?\nBu işlemden sonra ' + rightsLeft + ' düzenleme hakkınız kalacak.\n\n'
+    : '⚠️ Ayarlar kaydedildikten sonra yalnızca 3 kez düzenlenebilir!\n\n';
+  msg += 'Hafta içi günler: ' + wdNames + '\n';
+  msg += 'Hafta içi saatler: ' + wdStart + ' – ' + wdEnd + '\n';
+  if (weEnabled) {
+    var weNames = weSelected.map(function(d){ return DAY_NAMES[d]; }).join(', ');
+    msg += 'Hafta sonu günler: ' + weNames + '\n';
+    msg += 'Hafta sonu saatleri: ' + weStart + ' – ' + weEnd + '\n';
+  } else {
+    msg += 'Hafta sonu: Çalışılmıyor\n';
+  }
+  msg += '\nDevam etmek istiyor musunuz?';
+
+  if (!confirm(msg)) return;
+
+  // Mevcut hakkı kontrol et (düzenleme mi, ilk kayıt mı?)
+  var existing = loadWorkSchedule();
+  var editRights;
+  if (existing && existing.locked) {
+    // Düzenleme: hakkı 1 azalt
+    editRights = Math.max(0, (typeof existing.editRights === 'number' ? existing.editRights : 0) - 1);
+  } else {
+    // İlk kayıt: 3 hak ver
+    editRights = 3;
+  }
+
+  // Kaydet
+  var schedule = {
+    locked:         true,
+    savedAt:        new Date().toISOString(),
+    editRights:     editRights,
+    weekdays:       wdSelected,
+    wdStart:        wdStart,
+    wdEnd:          wdEnd,
+    weekendEnabled: weEnabled,
+    weekendDays:    weSelected,
+    weStart:        weEnabled ? weStart : '',
+    weEnd:          weEnabled ? weEnd   : '',
+  };
+
+  try {
+    localStorage.setItem('lufer_work_schedule', JSON.stringify(schedule));
+  } catch(e) {}
+
+  updateScheduleButtonUI();
+  closeScheduleModal();
+  var toastMsg = editRights > 0
+    ? '✏️ Mesai saatleri güncellendi! (' + editRights + ' hak kaldı)'
+    : '🔒 Mesai saatleri kaydedildi — düzenleme hakkı kalmadı!';
+  showToast(toastMsg);
+}
+
+// Sayfa yüklenince buton durumunu güncelle
+document.addEventListener('DOMContentLoaded', function() {
+  updateScheduleButtonUI();
+});
+// (DOMContentLoaded bazen geç tetiklenir, direkt de çalıştır)
+updateScheduleButtonUI();
+
+// ── SIFIRLA ───────────────────────────────────────────────────────
+function openResetModal() {
+  document.getElementById('reset-overlay').style.display = 'flex';
+}
+
+function closeResetModal() {
+  document.getElementById('reset-overlay').style.display = 'none';
+}
+
+function confirmReset() {
+  var keys = [
+    'mesai_state',
+    'mesai_records',
+    'mesai_izin_records',
+    'mesai_extra_records',
+    'lufer_theme',
+    'lufer_work_schedule',
+    'pwa_dismissed',
+    'ios_hint_shown',
+  ];
+  keys.forEach(function(k) {
+    try { localStorage.removeItem(k); } catch(e) {}
+  });
+  closeResetModal();
+  showToast('🗑️ Tüm veriler silindi. Sayfa yenileniyor…');
+  setTimeout(function() { location.reload(); }, 1200);
+}
+
+// ── JSON EXPORT ──────────────────────────────────────────────────
+function exportJSON() {
+  document.getElementById('settings-panel').style.display = 'none';
+
+  var backup = {
+    version:    4,
+    exportedAt: new Date().toISOString(),
+    appName:    'Lüfer Mesai Takip',
+    data: {
+      mesai_state:          localStorage.getItem('mesai_state')          || 'null',
+      mesai_records:        localStorage.getItem('mesai_records')        || '[]',
+      mesai_izin_records:   localStorage.getItem('mesai_izin_records')   || '[]',
+      mesai_extra_records:  localStorage.getItem('mesai_extra_records')  || '[]',
+      lufer_theme:          localStorage.getItem('lufer_theme')          || 'dark',
+      lufer_work_schedule:  localStorage.getItem('lufer_work_schedule')  || 'null',
+    }
+  };
+
+  var json = JSON.stringify(backup, null, 2);
+  var blob = new Blob([json], { type: 'application/json' });
+  var url  = URL.createObjectURL(blob);
+  var a    = document.createElement('a');
+  var today = new Date().toISOString().slice(0, 10);
+  a.href     = url;
+  a.download = 'LuferYedek_' + today + '.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  showToast('💾 Yedek dosyası indirildi!');
+}
+
+// ── JSON IMPORT ──────────────────────────────────────────────────
+function triggerImportJSON() {
+  document.getElementById('settings-panel').style.display = 'none';
+  document.getElementById('json-import-input').value = '';
+  document.getElementById('json-import-input').click();
+}
+
+function importJSON(event) {
+  var file = event.target.files[0];
+  if (!file) return;
+
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var backup = JSON.parse(e.target.result);
+
+      // Temel doğrulama
+      if (!backup || !backup.data || backup.appName !== 'Lüfer Mesai Takip') {
+        alert('❌ Geçersiz yedek dosyası!\nBu dosya Lüfer Mesai Takip uygulamasına ait değil.');
+        return;
+      }
+
+      var kayitSayisi = 0;
+      try {
+        var recs = JSON.parse(backup.data.mesai_records || '[]');
+        kayitSayisi = Array.isArray(recs) ? recs.length : 0;
+      } catch(err) {}
+
+      var exportTarih = backup.exportedAt
+        ? new Date(backup.exportedAt).toLocaleString('tr-TR')
+        : 'Bilinmiyor';
+
+      var onay = confirm(
+        '📂 Yedek Dosyası Bilgileri\n\n' +
+        '• Yedek tarihi: ' + exportTarih + '\n' +
+        '• Toplam kayıt: ' + kayitSayisi + ' adet\n\n' +
+        '⚠️ Mevcut tüm verilerinizin üzerine yazılacak!\n' +
+        'Devam etmek istiyor musunuz?'
+      );
+
+      if (!onay) return;
+
+      // Verileri yükle
+      var d = backup.data;
+      if (d.mesai_state         !== undefined) localStorage.setItem('mesai_state',         d.mesai_state);
+      if (d.mesai_records       !== undefined) localStorage.setItem('mesai_records',       d.mesai_records);
+      if (d.mesai_izin_records  !== undefined) localStorage.setItem('mesai_izin_records',  d.mesai_izin_records);
+      if (d.mesai_extra_records !== undefined) localStorage.setItem('mesai_extra_records', d.mesai_extra_records);
+      if (d.lufer_theme         !== undefined) localStorage.setItem('lufer_theme',         d.lufer_theme);
+      if (d.lufer_work_schedule !== undefined && d.lufer_work_schedule !== 'null')
+        localStorage.setItem('lufer_work_schedule', d.lufer_work_schedule);
+
+      showToast('✅ Yedek başarıyla yüklendi! Sayfa yenileniyor...');
+      setTimeout(function() { location.reload(); }, 1500);
+
+    } catch(err) {
+      alert('❌ Dosya okunamadı!\nGeçerli bir JSON dosyası seçin.\n\nHata: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+
 </script>
 
 <!-- Tema Geçiş Animasyonu Overlay -->
@@ -2083,5 +2834,47 @@ function toggleTheme() {
   font-family: inherit;
   letter-spacing: 0.03em;
 ">Designed by <strong style="color: #5b8db8;">Hasan İZGİ</strong></footer>
+
+<!-- Sıfırlama Onay Modalı -->
+<div id="reset-overlay" style="
+  display: none; position: fixed; inset: 0; z-index: 700;
+  background: rgba(0,0,0,.75); backdrop-filter: blur(6px);
+  align-items: center; justify-content: center; padding: 1rem;
+">
+  <div style="
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 18px; padding: 2rem; width: 100%; max-width: 380px;
+    box-shadow: 0 24px 60px rgba(0,0,0,.6);
+    animation: modal-in .22s cubic-bezier(.34,1.56,.64,1);
+  ">
+    <div style="text-align:center; margin-bottom: 1.5rem;">
+      <div style="font-size: 3rem; margin-bottom: .75rem;">⚠️</div>
+      <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: .5rem;">Tüm Veriler Silinecek</div>
+      <div style="font-size: .875rem; color: var(--muted); line-height: 1.6;">
+        Tüm mesai kayıtları, izinler, ekstra mesai ve ayarlar <strong style="color:var(--red)">kalıcı olarak silinecek</strong>.
+        Bu işlem geri alınamaz.
+      </div>
+    </div>
+
+    <div style="
+      background: rgba(224,92,92,.08); border: 1px solid rgba(224,92,92,.3);
+      border-radius: 10px; padding: .875rem 1rem; margin-bottom: 1.5rem;
+      font-size: .82rem; color: var(--text); line-height: 1.55;
+    ">
+      💡 Silmeden önce <strong>JSON yedeği</strong> almanızı öneririz.
+      Ayarlar → Sistem Kaydı → Yedeği Dışa Aktar.
+    </div>
+
+    <div style="display:flex; gap:10px;">
+      <button class="btn btn-secondary" onclick="closeResetModal()" style="flex:1;">İptal</button>
+      <button class="btn btn-danger" onclick="confirmReset()" style="flex:1;">🗑️ Sıfırla</button>
+    </div>
+  </div>
+</div>
+
+<style>
+  #reset-overlay.open { display: flex; }
+</style>
+
 </body>
 </html>
