@@ -332,23 +332,49 @@
   .log-empty .big { font-size: 2.5rem; margin-bottom: .5rem; }
 
   /* ── RECORDS TAB ── */
-  .filter-bar {
-    display: flex; gap: 10px; margin-bottom: 1.5rem; flex-wrap: wrap;
+  /* ── TAKVİM ── */
+  .cal-dow {
+    text-align: center;
+    font-size: .68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+    padding: 8px 0;
   }
-  .filter-bar input, .filter-bar select {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    color: var(--text);
-    border-radius: 8px;
-    padding: 9px 14px;
-    font-family: 'Inter', sans-serif;
-    font-size: .875rem;
-    outline: none;
+  .cal-day {
+    aspect-ratio: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border-top: 1px solid var(--border);
+    font-size: .85rem;
+    font-weight: 500;
+    position: relative;
+    transition: background .12s;
+    gap: 3px;
+    padding: 4px 2px;
   }
-  .filter-bar input:focus, .filter-bar select:focus {
-    border-color: var(--amber);
+  .cal-day:hover { background: var(--panel); }
+  .cal-day.other-month { color: var(--muted); opacity: .4; cursor: default; }
+  .cal-day.other-month:hover { background: none; }
+  .cal-day.today { font-weight: 700; color: var(--amber); }
+  .cal-day.has-record::after {
+    content: '';
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--amber);
+    display: block;
   }
-  .filter-bar input { flex: 1; min-width: 130px; }
+  .cal-day.selected {
+    background: var(--amber) !important;
+    color: #0B1929 !important;
+    font-weight: 700;
+  }
+  .cal-day.selected::after { background: #0B1929; }
+  .cal-day.today.selected { color: #0B1929 !important; }
 
   .record-table { width: 100%; border-collapse: collapse; }
   .record-table th {
@@ -965,19 +991,88 @@
 
   <div class="tab-pane" id="tab-records">
 
-    <div class="filter-bar">
-      <input type="date" id="filter-date" onchange="renderRecords()">
-      <select id="filter-type" onchange="renderRecords()">
-        <option value="">Tüm Türler</option>
-        <option value="giris">İş Girişi</option>
-        <option value="cikis">İş Çıkışı</option>
-        <option value="mola-bas">Mola Başlangıç</option>
-        <option value="mola-bit">Mola Bitiş</option>
-      </select>
-      <button class="export-btn" onclick="exportCSV()">⬇️ CSV İndir</button>
+    <!-- Takvim Başlık -->
+    <div style="
+      display:flex; align-items:center; justify-content:space-between;
+      margin-bottom:1rem;
+    ">
+      <button onclick="calPrevMonth()" style="
+        background:var(--panel); border:1px solid var(--border);
+        color:var(--text); border-radius:8px; padding:7px 14px;
+        cursor:pointer; font-size:1rem; transition:all .15s;
+      " onmouseover="this.style.borderColor='var(--amber)'" onmouseout="this.style.borderColor='var(--border)'">‹</button>
+      <div id="cal-title" style="font-weight:700; font-size:1rem;"></div>
+      <button onclick="calNextMonth()" style="
+        background:var(--panel); border:1px solid var(--border);
+        color:var(--text); border-radius:8px; padding:7px 14px;
+        cursor:pointer; font-size:1rem; transition:all .15s;
+      " onmouseover="this.style.borderColor='var(--amber)'" onmouseout="this.style.borderColor='var(--border)'">›</button>
     </div>
 
-    <div id="records-container"></div>
+    <!-- Takvim Grid -->
+    <div style="
+      background:var(--surface); border:1px solid var(--border);
+      border-radius:var(--radius); overflow:hidden; margin-bottom:1.25rem;
+    ">
+      <!-- Gün başlıkları -->
+      <div style="
+        display:grid; grid-template-columns:repeat(7,1fr);
+        border-bottom:1px solid var(--border);
+      ">
+        <div class="cal-dow">Pzt</div>
+        <div class="cal-dow">Sal</div>
+        <div class="cal-dow">Çar</div>
+        <div class="cal-dow">Per</div>
+        <div class="cal-dow">Cum</div>
+        <div class="cal-dow" style="color:var(--amber)">Cmt</div>
+        <div class="cal-dow" style="color:var(--amber)">Paz</div>
+      </div>
+      <!-- Günler -->
+      <div id="cal-grid" style="display:grid; grid-template-columns:repeat(7,1fr);"></div>
+    </div>
+
+    <!-- Seçili gün detayı -->
+    <div id="cal-detail" style="display:none;">
+      <div style="
+        font-size:.72rem; font-weight:700; text-transform:uppercase;
+        letter-spacing:2px; color:var(--muted); margin-bottom:.75rem;
+        padding-bottom:.5rem; border-bottom:1px solid var(--border);
+        display:flex; align-items:center; justify-content:space-between;
+      ">
+        <span id="cal-detail-title"></span>
+        <button onclick="exportDayCSV()" style="
+          background:var(--panel); border:1px solid var(--border);
+          color:var(--muted); border-radius:6px; padding:4px 10px;
+          cursor:pointer; font-size:.75rem; font-weight:500;
+          transition:all .15s; letter-spacing:0; text-transform:none;
+        " onmouseover="this.style.borderColor='var(--amber)';this.style.color='var(--amber)'"
+           onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">⬇️ CSV</button>
+      </div>
+
+      <!-- Özet kartları -->
+      <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:.75rem; margin-bottom:1.25rem;">
+        <div class="summary-card amber">
+          <div class="s-label">Çalışma</div>
+          <div class="s-value" id="cal-s-work">--:--</div>
+        </div>
+        <div class="summary-card green">
+          <div class="s-label">Mola</div>
+          <div class="s-value" id="cal-s-break">--:--</div>
+        </div>
+        <div class="summary-card red">
+          <div class="s-label">Net Mesai</div>
+          <div class="s-value" id="cal-s-net">--:--</div>
+        </div>
+      </div>
+
+      <!-- Kayıt listesi -->
+      <div id="cal-record-list" class="log-list"></div>
+    </div>
+
+    <div id="cal-empty" style="display:none;">
+      <div class="log-empty"><div class="big">📅</div>Bu güne ait kayıt yok.</div>
+    </div>
+
   </div>
 
   <!-- ── İZİNLER SEKMESİ ── -->
@@ -1627,56 +1722,173 @@ function renderBreakLog() {
   }).join('');
 }
 
-function renderRecords() {
-  const container = document.getElementById('records-container');
-  if (!container) return;
-  const dateFilter = document.getElementById('filter-date').value;
-  const typeFilter = document.getElementById('filter-type').value;
+// ── TAKVİM ────────────────────────────────────────────────────
+let calYear  = new Date().getFullYear();
+let calMonth = new Date().getMonth(); // 0-based
+let calSelectedDate = null;
 
-  let recs = [...state.records].sort((a, b) => (a.ts || 0) - (b.ts || 0)).reverse();
-  if (dateFilter) recs = recs.filter(r => r && r.date === dateFilter);
-  if (typeFilter) recs = recs.filter(r => r && r.type === typeFilter);
+const MONTHS_TR = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran',
+                   'Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+
+function renderCalendar() {
+  const titleEl = document.getElementById('cal-title');
+  const gridEl  = document.getElementById('cal-grid');
+  if (!titleEl || !gridEl) return;
+
+  titleEl.textContent = MONTHS_TR[calMonth] + ' ' + calYear;
+
+  // Bu ayda kayıtlı günleri bul
+  const recordDays = new Set(
+    state.records
+      .filter(r => r && r.date && r.date.startsWith(calYear + '-' + pad(calMonth + 1)))
+      .map(r => r.date)
+  );
+
+  const today = dateKey();
+  const firstDay = new Date(calYear, calMonth, 1);
+  // Pazartesi=0 düzenine çevir (JS'de 0=Pazar)
+  let startDow = firstDay.getDay(); // 0=Paz,1=Pzt...
+  startDow = (startDow === 0) ? 6 : startDow - 1; // Pzt=0,...,Paz=6
+
+  const daysInMonth  = new Date(calYear, calMonth + 1, 0).getDate();
+  const daysInPrev   = new Date(calYear, calMonth, 0).getDate();
+  const totalCells   = Math.ceil((startDow + daysInMonth) / 7) * 7;
+
+  let html = '';
+  for (let i = 0; i < totalCells; i++) {
+    let day, dateStr, cls = 'cal-day';
+    if (i < startDow) {
+      // Önceki ay
+      day = daysInPrev - startDow + i + 1;
+      const m = calMonth === 0 ? 12 : calMonth;
+      const y = calMonth === 0 ? calYear - 1 : calYear;
+      dateStr = y + '-' + pad(m) + '-' + pad(day);
+      cls += ' other-month';
+    } else if (i < startDow + daysInMonth) {
+      // Bu ay
+      day = i - startDow + 1;
+      dateStr = calYear + '-' + pad(calMonth + 1) + '-' + pad(day);
+      if (dateStr === today) cls += ' today';
+      if (recordDays.has(dateStr)) cls += ' has-record';
+    } else {
+      // Sonraki ay
+      day = i - startDow - daysInMonth + 1;
+      const m = calMonth === 11 ? 1 : calMonth + 2;
+      const y = calMonth === 11 ? calYear + 1 : calYear;
+      dateStr = y + '-' + pad(m) + '-' + pad(day);
+      cls += ' other-month';
+    }
+    if (dateStr === calSelectedDate) cls += ' selected';
+    const clickable = cls.includes('other-month') ? '' : `onclick="calSelectDay('${dateStr}')"`;
+    html += `<div class="${cls}" ${clickable}>${day}</div>`;
+  }
+  gridEl.innerHTML = html;
+}
+
+function calPrevMonth() {
+  if (calMonth === 0) { calMonth = 11; calYear--; }
+  else calMonth--;
+  renderCalendar();
+}
+
+function calNextMonth() {
+  if (calMonth === 11) { calMonth = 0; calYear++; }
+  else calMonth++;
+  renderCalendar();
+}
+
+function calSelectDay(dateStr) {
+  calSelectedDate = dateStr;
+  renderCalendar();
+  renderDayDetail(dateStr);
+}
+
+function renderDayDetail(dateStr) {
+  const detailEl = document.getElementById('cal-detail');
+  const emptyEl  = document.getElementById('cal-empty');
+  const titleEl  = document.getElementById('cal-detail-title');
+
+  const recs = state.records
+    .filter(r => r && r.date === dateStr)
+    .sort((a, b) => (a.ts || 0) - (b.ts || 0));
+
+  // Tarih başlığını formatla
+  const parts = dateStr.split('-');
+  const d = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
+  const DAYS_TR = ['Pazar','Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi'];
+  titleEl.textContent = DAYS_TR[d.getDay()] + ', ' + d.getDate() + ' ' + MONTHS_TR[d.getMonth()] + ' ' + d.getFullYear();
 
   if (!recs.length) {
-    container.innerHTML = `<div class="log-empty"><div class="big">🔍</div>Kayıt bulunamadı.</div>`;
+    detailEl.style.display = 'none';
+    emptyEl.style.display  = 'block';
     return;
   }
+  detailEl.style.display = 'block';
+  emptyEl.style.display  = 'none';
 
-  container.innerHTML = `
-    <table class="record-table">
-      <thead>
-        <tr>
-          <th>Tarih</th>
-          <th>Saat</th>
-          <th>Tür</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        ${recs.map(r => {
-          const t = typeLabels[r.type];
-          if (!t) return '';
-          const isMolaRec = r.type === 'mola-bas' || r.type === 'mola-bit';
-          const pillLabel = (isMolaRec && r.label && r.label.trim()) ? r.label : t.label;
-          const noteCell  = (isMolaRec && r.note && r.note.trim())
-            ? `<div style="font-size:.72rem;color:var(--muted);margin-top:2px;">${r.note}</div>` : '';
-          return `<tr>
-            <td class="mono">${r.date}</td>
-            <td class="mono">${r.time}</td>
-            <td>
-              <span class="type-pill ${t.cls}">${t.icon} ${pillLabel}</span>
-              ${noteCell}
-            </td>
-            <td>
-              <div class="action-btns">
-                <button class="edit-btn" onclick="openEditModal(${r.id})" title="Düzenle">✏️</button>
-                <button class="del-btn"  onclick="deleteRecord(${r.id})"  title="Sil">🗑</button>
-              </div>
-            </td>
-          </tr>`;
-        }).join('')}
-      </tbody>
-    </table>`;
+  // Süre hesapla
+  let workMs = 0, breakMs = 0;
+  let lastIn = null, lastBreakStart = null;
+  for (const r of recs) {
+    if (r.type === 'giris')    { lastIn = r.ts; }
+    if (r.type === 'cikis')    { if (lastIn) { workMs += r.ts - lastIn; lastIn = null; } }
+    if (r.type === 'mola-bas') { lastBreakStart = r.ts; }
+    if (r.type === 'mola-bit') { if (lastBreakStart) { breakMs += r.ts - lastBreakStart; lastBreakStart = null; } }
+  }
+  document.getElementById('cal-s-work').textContent  = toHM(workMs);
+  document.getElementById('cal-s-break').textContent = toHM(breakMs);
+  document.getElementById('cal-s-net').textContent   = toHM(Math.max(0, workMs - breakMs));
+
+  // Kayıt listesi
+  const listEl = document.getElementById('cal-record-list');
+  listEl.innerHTML = recs.map(r => {
+    const t = typeLabels[r.type];
+    if (!t) return '';
+    const isMola = r.type === 'mola-bas' || r.type === 'mola-bit';
+    const displayName = (isMola && r.label && r.label.trim()) ? `${t.icon} ${r.label}` : `${t.icon} ${t.label}`;
+    const noteHtml = (isMola && r.note && r.note.trim())
+      ? `<div style="font-size:.75rem;color:var(--muted);margin-top:3px;padding-left:18px;">${r.note}</div>` : '';
+    return `<div class="log-item" style="${noteHtml ? 'flex-direction:column;align-items:stretch;gap:4px;' : ''}">
+      <div style="display:flex;align-items:center;justify-content:space-between;width:100%;">
+        <div class="log-type">
+          <span class="log-badge ${t.cls}"></span>
+          <span class="log-type-text">${displayName}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="log-time">${r.time}</span>
+          <button class="edit-btn" onclick="openEditModal(${r.id})" title="Düzenle">✏️</button>
+          <button class="del-btn"  onclick="deleteRecord(${r.id})"  title="Sil">🗑</button>
+        </div>
+      </div>
+      ${noteHtml}
+    </div>`;
+  }).join('');
+}
+
+function exportDayCSV() {
+  if (!calSelectedDate) return;
+  const recs = state.records
+    .filter(r => r && r.date === calSelectedDate)
+    .sort((a, b) => (a.ts || 0) - (b.ts || 0));
+  const labels = { giris:'İş Girişi', cikis:'İş Çıkışı', 'mola-bas':'Mola Başlangıcı', 'mola-bit':'Moladan Dönüş' };
+  const rows = [['Tarih','Saat','Tür'], ...recs.map(r => [r.date, r.time, labels[r.type] || r.type])];
+  const csv = rows.map(r => r.join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent('\uFEFF' + csv);
+  a.download = 'mesai_' + calSelectedDate + '.csv';
+  a.click();
+  showToast('⬇️ CSV indirildi.');
+}
+
+function renderRecords() {
+  // Takvim sekmesi açıldığında çağrılır
+  renderCalendar();
+  // Bugünü otomatik seç
+  if (!calSelectedDate) {
+    calSelectedDate = dateKey();
+    renderCalendar();
+    renderDayDetail(calSelectedDate);
+  }
 }
 
 function deleteRecord(id) {
@@ -1705,7 +1917,8 @@ function deleteRecord(id) {
 
   saveState();
   syncUI();
-  renderRecords();
+  renderCalendar();
+  if (calSelectedDate) renderDayDetail(calSelectedDate);
   renderTodayLog();
   renderBreakLog();
   updateChronos();
@@ -1713,22 +1926,7 @@ function deleteRecord(id) {
   showToast('🗑 Kayıt silindi.');
 }
 
-function exportCSV() {
-  const dateFilter = document.getElementById('filter-date').value;
-  const typeFilter = document.getElementById('filter-type').value;
-  let recs = [...state.records].sort((a, b) => (a.ts || 0) - (b.ts || 0));
-  if (dateFilter) recs = recs.filter(r => r && r.date === dateFilter);
-  if (typeFilter) recs = recs.filter(r => r && r.type === typeFilter);
 
-  const labels = { giris: 'İş Girişi', cikis: 'İş Çıkışı', 'mola-bas': 'Mola Başlangıcı', 'mola-bit': 'Moladan Dönüş' };
-  const rows = [['Tarih','Saat','Tür'], ...recs.map(r => [r.date, r.time, labels[r.type] || r.type])];
-  const csv = rows.map(r => r.join(',')).join('\n');
-  const a = document.createElement('a');
-  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent('\uFEFF' + csv);
-  a.download = `mesai_${dateKey()}.csv`;
-  a.click();
-  showToast('⬇️ CSV indirildi.');
-}
 
 // ── EDIT MODAL ────────────────────────────────────────────────
 let editingId = null;
@@ -1828,7 +2026,8 @@ function saveEdit() {
   syncUI();
   renderTodayLog();
   renderBreakLog();
-  renderRecords();
+  renderCalendar();
+  if (calSelectedDate) renderDayDetail(calSelectedDate);
   updateChronos();
   updateSummary();
   showToast('✏️ Kayıt güncellendi.');
@@ -2238,18 +2437,29 @@ function exportAllExcel() {
         var dk = Math.round((bitRec.ts - basRec.ts) / 60000);
         sureDk = Math.floor(dk/60) + 's ' + (dk%60) + 'dk';
       }
+      // Mola adı: basRec.label varsa, yoksa bitRec.label, yoksa varsayılan
+      var molaAdi = (basRec.label && basRec.label.trim())
+        ? basRec.label
+        : (bitRec && bitRec.label && bitRec.label.trim() ? bitRec.label : '');
+      // Açıklama: basRec.note veya bitRec.note
+      var molaAciklama = (basRec.note && basRec.note.trim())
+        ? basRec.note
+        : (bitRec && bitRec.note && bitRec.note.trim() ? bitRec.note : '');
+
       breakRows.push([
         d2,
         basRec.time || '',
         bitRec ? (bitRec.time || '') : 'Bitmedi',
         sureDk,
-        (mi2+1) + '. Mola'
+        (mi2+1) + '. Mola',
+        molaAdi,
+        molaAciklama
       ]);
     }
   }
-  var breakHeaders = ['Tarih', 'Mola Başlangıç', 'Mola Bitiş', 'Süre', 'Mola No'];
+  var breakHeaders = ['Tarih', 'Mola Başlangıç', 'Mola Bitiş', 'Süre', 'Mola No', 'Mola Adı', 'Açıklama'];
   var wsBreak = XLSX.utils.aoa_to_sheet([breakHeaders].concat(breakRows));
-  wsBreak['!cols'] = [{wch:14},{wch:16},{wch:14},{wch:12},{wch:12}];
+  wsBreak['!cols'] = [{wch:14},{wch:16},{wch:14},{wch:12},{wch:12},{wch:22},{wch:36}];
   wsBreak['!rows'] = [{hpt:20}];
   for (var j = 1; j <= breakRows.length; j++) { wsBreak['!rows'].push({hpt:18}); }
   applyStyles(wsBreak, breakHeaders, breakRows);
@@ -2684,6 +2894,72 @@ document.addEventListener('DOMContentLoaded', function() {
 // (DOMContentLoaded bazen geç tetiklenir, direkt de çalıştır)
 updateScheduleButtonUI();
 
+// ── OTOMATİK YEDEK HATIRLATICI ───────────────────────────────────
+var AUTO_BACKUP_INTERVAL_DAYS = 3;
+
+function checkAutoBackup() {
+  // Hiç kayıt yoksa gösterme
+  var recs = [];
+  try { recs = JSON.parse(localStorage.getItem('mesai_records') || '[]'); } catch(e) {}
+  if (!recs.length) return;
+
+  var lastBackup = localStorage.getItem('lufer_last_backup') || null;
+  var lastRemind = localStorage.getItem('lufer_last_backup_remind') || null;
+
+  var now = Date.now();
+  var intervalMs = AUTO_BACKUP_INTERVAL_DAYS * 24 * 60 * 60 * 1000;
+
+  // Son yedek veya son hatırlatmadan bu yana 3 gün geçtiyse göster
+  var referenceTime = Math.max(
+    lastBackup  ? parseInt(lastBackup)  : 0,
+    lastRemind  ? parseInt(lastRemind)  : 0
+  );
+
+  // Hiç yedek alınmamışsa ve 3 günden fazla kayıt varsa da göster
+  if (!lastBackup) {
+    var firstRec = recs.slice().sort(function(a,b){ return (a.ts||0)-(b.ts||0); })[0];
+    var firstTs  = firstRec ? (firstRec.ts || 0) : 0;
+    referenceTime = Math.max(referenceTime, firstTs);
+  }
+
+  if (now - referenceTime >= intervalMs) {
+    showAutoBackupModal(lastBackup);
+  }
+}
+
+function showAutoBackupModal(lastBackup) {
+  var msgEl = document.getElementById('autobackup-msg');
+  if (msgEl) {
+    if (lastBackup) {
+      var d = new Date(parseInt(lastBackup));
+      var dateStr = d.getDate() + ' ' + 
+        ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran',
+         'Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'][d.getMonth()] +
+        ' ' + d.getFullYear();
+      msgEl.innerHTML = 'Son yedekleme: <strong>' + dateStr + '</strong><br>Verilerini şimdi yedeklemek ister misin?';
+    } else {
+      msgEl.innerHTML = 'Henüz hiç yedek almadın.<br>Verilerini yedeklemek ister misin?';
+    }
+  }
+  document.getElementById('autobackup-overlay').style.display = 'flex';
+}
+
+function autoBackupDo() {
+  document.getElementById('autobackup-overlay').style.display = 'none';
+  localStorage.setItem('lufer_last_backup', Date.now().toString());
+  exportJSON();
+}
+
+function autoBackupSkip() {
+  document.getElementById('autobackup-overlay').style.display = 'none';
+  // "Şimdi değil" seçilince 3 gün daha bekleme — bugünü kaydet
+  localStorage.setItem('lufer_last_backup_remind', Date.now().toString());
+  showToast('⏭️ Hatırlatma 3 gün ertelendi.');
+}
+
+// Sayfa açılınca 1 saniye sonra kontrol et (uygulama yüklendikten sonra)
+setTimeout(function() { checkAutoBackup(); }, 1000);
+
 // ── SIFIRLA ───────────────────────────────────────────────────────
 function openResetModal() {
   document.getElementById('reset-overlay').style.display = 'flex';
@@ -2701,6 +2977,8 @@ function confirmReset() {
     'mesai_extra_records',
     'lufer_theme',
     'lufer_work_schedule',
+    'lufer_last_backup',
+    'lufer_last_backup_remind',
     'pwa_dismissed',
     'ios_hint_shown',
   ];
@@ -2727,6 +3005,7 @@ function exportJSON() {
       mesai_extra_records:  localStorage.getItem('mesai_extra_records')  || '[]',
       lufer_theme:          localStorage.getItem('lufer_theme')          || 'dark',
       lufer_work_schedule:  localStorage.getItem('lufer_work_schedule')  || 'null',
+      lufer_last_backup:    localStorage.getItem('lufer_last_backup')    || 'null',
     }
   };
 
@@ -2742,6 +3021,8 @@ function exportJSON() {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 
+  // Manuel yedek zamanını kaydet
+  try { localStorage.setItem('lufer_last_backup', Date.now().toString()); } catch(e) {}
   showToast('💾 Yedek dosyası indirildi!');
 }
 
@@ -2834,6 +3115,43 @@ function importJSON(event) {
   font-family: inherit;
   letter-spacing: 0.03em;
 ">Designed by <strong style="color: #5b8db8;">Hasan İZGİ</strong></footer>
+
+<!-- Otomatik Yedek Hatırlatma Modalı -->
+<div id="autobackup-overlay" style="
+  display:none; position:fixed; inset:0; z-index:800;
+  background:rgba(0,0,0,.75); backdrop-filter:blur(6px);
+  align-items:center; justify-content:center; padding:1rem;
+">
+  <div style="
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:18px; padding:2rem; width:100%; max-width:380px;
+    box-shadow:0 24px 60px rgba(0,0,0,.6);
+    animation:modal-in .22s cubic-bezier(.34,1.56,.64,1);
+  ">
+    <div style="text-align:center; margin-bottom:1.5rem;">
+      <div style="font-size:2.8rem; margin-bottom:.75rem;">💾</div>
+      <div style="font-weight:700; font-size:1.05rem; margin-bottom:.5rem;">Yedekleme Zamanı</div>
+      <div style="font-size:.875rem; color:var(--muted); line-height:1.6;" id="autobackup-msg">
+        Son yedeklemenden bu yana 3 gün geçti.<br>Verilerini yedeklemek ister misin?
+      </div>
+    </div>
+
+    <div style="
+      background:var(--panel); border:1px solid var(--border);
+      border-radius:10px; padding:.875rem 1rem; margin-bottom:1.5rem;
+      font-size:.82rem; color:var(--muted); line-height:1.55;
+      display:flex; align-items:center; gap:10px;
+    ">
+      <span style="font-size:1.1rem; flex-shrink:0;">🔒</span>
+      Yedek dosyası bilgisayarına JSON formatında kaydedilecek.
+    </div>
+
+    <div style="display:flex; gap:10px;">
+      <button class="btn btn-secondary" onclick="autoBackupSkip()" style="flex:1;">Şimdi Değil</button>
+      <button class="btn btn-primary"   onclick="autoBackupDo()"   style="flex:1;">💾 Yedekle</button>
+    </div>
+  </div>
+</div>
 
 <!-- Sıfırlama Onay Modalı -->
 <div id="reset-overlay" style="
