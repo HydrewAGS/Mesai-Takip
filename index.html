@@ -320,8 +320,10 @@
   }
   .log-badge.giris    { background: var(--green); }
   .log-badge.cikis    { background: var(--red); }
-  .log-badge.mola-bas { background: var(--amber); }
-  .log-badge.mola-bit { background: #7DAFFF; }
+  .log-badge.mola-bas  { background: var(--amber); }
+  .log-badge.mola-bit  { background: #7DAFFF; }
+  .log-badge.gorev-bas { background: #A8D8A8; }
+  .log-badge.gorev-bit { background: #C8A8D8; }
 
   .log-type-text { font-weight: 500; }
   .log-time {
@@ -416,8 +418,10 @@
   }
   .type-pill.giris    { color: var(--green); border-color: var(--green); background: rgba(46,204,142,.08); }
   .type-pill.cikis    { color: var(--red);   border-color: var(--red);   background: rgba(224,92,92,.08); }
-  .type-pill.mola-bas { color: var(--amber); border-color: var(--amber); background: rgba(245,166,35,.08); }
-  .type-pill.mola-bit { color: #7DAFFF;      border-color: #7DAFFF;      background: rgba(125,175,255,.08); }
+  .type-pill.mola-bas  { color: var(--amber); border-color: var(--amber); background: rgba(245,166,35,.08); }
+  .type-pill.mola-bit  { color: #7DAFFF;      border-color: #7DAFFF;      background: rgba(125,175,255,.08); }
+  .type-pill.gorev-bas { color: #A8D8A8;       border-color: #A8D8A8;      background: rgba(168,216,168,.08); }
+  .type-pill.gorev-bit { color: #C8A8D8;       border-color: #C8A8D8;      background: rgba(200,168,216,.08); }
 
   .del-btn {
     background: none; border: none; color: var(--muted);
@@ -924,7 +928,7 @@
 
 <nav>
   <button class="tab-btn active" onclick="switchTab('work')">🏢 İş Girişi</button>
-  <button class="tab-btn" onclick="switchTab('break')">☕ Mola</button>
+  <button class="tab-btn" onclick="switchTab('break')">🕐 Hareketler</button>
   <button class="tab-btn" onclick="switchTab('records')">📋 Kayıtlar</button>
   <button class="tab-btn" onclick="switchTab('tracking')">🏖️ İzinler</button>
 </nav>
@@ -941,6 +945,10 @@
       <div class="summary-card green">
         <div class="s-label">Mola Süresi</div>
         <div class="s-value" id="s-break">00:00</div>
+      </div>
+      <div class="summary-card" style="background:rgba(100,160,255,.08);border-color:rgba(100,160,255,.35);">
+        <div class="s-label" style="color:#6DA4E0;">Görev Süresi</div>
+        <div class="s-value" id="s-gorev" style="color:#6DA4E0;">00:00</div>
       </div>
       <div class="summary-card red">
         <div class="s-label">Net Mesai</div>
@@ -980,33 +988,55 @@
 
     <div class="break-info">
       <span class="icon">💡</span>
-      <span>Molaya çıkmadan önce işe girişinizin yapılmış olması gerekir.</span>
+      <span>Molaya veya göreve çıkmadan önce işe girişinizin yapılmış olması gerekir.</span>
     </div>
 
-    <div class="chrono-card">
-      <div class="chrono-label">Mola Süresi</div>
-      <div class="chrono-time idle" id="break-chrono">00:00:00</div>
+    <!-- Çift sayaç yan yana — mobilde taşmayacak şekilde -->
+    <div style="display:flex;gap:10px;margin-bottom:12px;min-width:0;">
+      <div class="chrono-card" style="flex:1;min-width:0;padding:1.5rem 1rem;">
+        <div class="chrono-label">Görev Süresi</div>
+        <div class="chrono-time idle" id="gorev-chrono" style="font-size:clamp(1.6rem,5.5vw,3rem);">00:00:00</div>
 
-      <div class="status-badge" id="break-status-badge">
-        <span class="dot"></span>
-        <span id="break-status-text">Molada Değilsiniz</span>
+        <div class="status-badge" id="gorev-status-badge">
+          <span class="dot"></span>
+          <span id="gorev-status-text">Görevde Değilsiniz</span>
+        </div>
+
+        <div class="btn-group">
+          <button class="btn" id="btn-gorev-start" onclick="gorevStart()" style="background:var(--green);color:#000;opacity:.9;font-size:.82rem;">
+            🚗 Göreve Çık
+          </button>
+          <button class="btn btn-secondary" id="btn-gorev-end" onclick="gorevEnd()" disabled style="font-size:.82rem;">
+            🏠 Görevden Dön
+          </button>
+        </div>
       </div>
 
-      <div class="btn-group">
-        <button class="btn btn-success" id="btn-break-start" onclick="breakStart()">
-          ☕ Molaya Çık
-        </button>
-        <button class="btn btn-secondary" id="btn-break-end" onclick="breakEnd()" disabled>
-          🔙 Moladan Dön
-        </button>
+      <div class="chrono-card" style="flex:1;min-width:0;padding:1.5rem 1rem;">
+        <div class="chrono-label">Mola Süresi</div>
+        <div class="chrono-time idle" id="break-chrono" style="font-size:clamp(1.6rem,5.5vw,3rem);">00:00:00</div>
+
+        <div class="status-badge" id="break-status-badge">
+          <span class="dot"></span>
+          <span id="break-status-text">Molada Değilsiniz</span>
+        </div>
+
+        <div class="btn-group">
+          <button class="btn btn-success" id="btn-break-start" onclick="breakStart()" style="font-size:.82rem;">
+            ☕ Molaya Çık
+          </button>
+          <button class="btn btn-secondary" id="btn-break-end" onclick="breakEnd()" disabled style="font-size:.82rem;">
+            🔙 Moladan Dön
+          </button>
+        </div>
       </div>
     </div>
 
-    <div class="section-title">Mola Geçmişi</div>
+    <div class="section-title">Hareket Geçmişi</div>
     <div class="log-list" id="break-log">
       <div class="log-empty">
-        <div class="big">☕</div>
-        Henüz mola kaydı yok.
+        <div class="big">🚗</div>
+        Henüz hareket kaydı yok.
       </div>
     </div>
   </div>
@@ -1393,8 +1423,8 @@
     </div>
 
     <div class="modal-field" id="edit-label-field" style="display:none">
-      <label>Mola Adı <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);font-size:.7rem;">(isteğe bağlı)</span></label>
-      <input type="text" id="edit-label" placeholder="ör. Öğle molası, Kahve molası…" style="
+      <label>Ad <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);font-size:.7rem;">(isteğe bağlı)</span></label>
+      <input type="text" id="edit-label" placeholder="ör. Öğle molası, Saha görevi…" style="
         width:100%;background:var(--panel);border:1px solid var(--border);
         color:var(--text);border-radius:8px;padding:10px 12px;
         font-family:inherit;font-size:.875rem;outline:none;box-sizing:border-box;
@@ -1403,7 +1433,7 @@
     </div>
     <div class="modal-field" id="edit-note-field" style="display:none">
       <label>Açıklama <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);font-size:.7rem;">(isteğe bağlı)</span></label>
-      <textarea id="edit-note" rows="2" placeholder="Bu mola hakkında not ekleyin…" style="
+      <textarea id="edit-note" rows="2" placeholder="Bu kayıt hakkında not ekleyin…" style="
         width:100%;background:var(--panel);border:1px solid var(--border);
         color:var(--text);border-radius:8px;padding:10px 12px;
         font-family:inherit;font-size:.875rem;outline:none;resize:vertical;
@@ -1424,7 +1454,7 @@
 
 <script>
 // ── STATE MANAGEMENT (SAFE LOAD/SAVE) ───────────────────────────
-let state = { isWorking: false, isOnBreak: false, workStart: null, breakStart: null, records: [] };
+let state = { isWorking: false, isOnBreak: false, isOnGorev: false, workStart: null, breakStart: null, gorevStart: null, records: [] };
 
 function pad(n) { return String(n).padStart(2,'0'); }
 
@@ -1453,12 +1483,14 @@ function loadState() {
     return {
       isWorking:  !!saved.isWorking,
       isOnBreak:  !!saved.isOnBreak,
+      isOnGorev:  !!saved.isOnGorev,
       workStart:  saved.workStart  || null,
       breakStart: saved.breakStart || null,
+      gorevStart: saved.gorevStart || null,
       records,
     };
   }
-  return { isWorking: false, isOnBreak: false, workStart: null, breakStart: null, records };
+  return { isWorking: false, isOnBreak: false, isOnGorev: false, workStart: null, breakStart: null, gorevStart: null, records };
 }
 
 function saveState() {
@@ -1467,8 +1499,10 @@ function saveState() {
       date:       dateKey(),
       isWorking:  state.isWorking,
       isOnBreak:  state.isOnBreak,
+      isOnGorev:  state.isOnGorev,
       workStart:  state.workStart,
       breakStart: state.breakStart,
+      gorevStart: state.gorevStart,
     }));
   } catch(e) {}
 }
@@ -1508,16 +1542,18 @@ function todayRecords() {
 
 function getTodayAccruals() {
   const recs = todayRecords().sort((a, b) => (a.ts || 0) - (b.ts || 0));
-  let pastWorkMs = 0, pastBreakMs = 0;
-  let lastIn = null, lastBreakStart = null;
+  let pastWorkMs = 0, pastBreakMs = 0, pastGorevMs = 0;
+  let lastIn = null, lastBreakStart = null, lastGorevStart = null;
 
   for (const r of recs) {
-    if (r.type === 'giris')    { lastIn = r.ts; }
-    if (r.type === 'cikis')   { if (lastIn) { pastWorkMs += r.ts - lastIn; lastIn = null; } }
-    if (r.type === 'mola-bas') { lastBreakStart = r.ts; }
-    if (r.type === 'mola-bit') { if (lastBreakStart) { pastBreakMs += r.ts - lastBreakStart; lastBreakStart = null; } }
+    if (r.type === 'giris')     { lastIn = r.ts; }
+    if (r.type === 'cikis')     { if (lastIn) { pastWorkMs += r.ts - lastIn; lastIn = null; } }
+    if (r.type === 'mola-bas')  { lastBreakStart = r.ts; }
+    if (r.type === 'mola-bit')  { if (lastBreakStart) { pastBreakMs += r.ts - lastBreakStart; lastBreakStart = null; } }
+    if (r.type === 'gorev-bas') { lastGorevStart = r.ts; }
+    if (r.type === 'gorev-bit') { if (lastGorevStart) { pastGorevMs += r.ts - lastGorevStart; lastGorevStart = null; } }
   }
-  return { pastWorkMs, pastBreakMs };
+  return { pastWorkMs, pastBreakMs, pastGorevMs };
 }
 
 // ── TIMER LOOP ─────────────────────────────────────────────────
@@ -1529,6 +1565,7 @@ setInterval(() => {
 function updateChronos() {
   const wEl = document.getElementById('work-chrono');
   const bEl = document.getElementById('break-chrono');
+  const gEl = document.getElementById('gorev-chrono');
   if (!wEl || !bEl) return;
 
   const past = getTodayAccruals();
@@ -1544,23 +1581,35 @@ function updateChronos() {
     bEl.textContent = toHMS(bElapsed);
     bEl.className = 'chrono-time break';
   }
+
+  if (gEl) {
+    if (state.isOnGorev && state.gorevStart) {
+      const gElapsed = past.pastGorevMs + (Date.now() - state.gorevStart);
+      gEl.textContent = toHMS(gElapsed);
+      gEl.className = 'chrono-time working';
+    }
+  }
 }
 
 function updateSummary() {
   const past = getTodayAccruals();
   let workMs = past.pastWorkMs;
   let breakMs = past.pastBreakMs;
+  let gorevMs = past.pastGorevMs;
 
   if (state.isWorking && state.workStart) workMs += Date.now() - state.workStart;
   if (state.isOnBreak && state.breakStart) breakMs += Date.now() - state.breakStart;
+  if (state.isOnGorev && state.gorevStart) gorevMs += Date.now() - state.gorevStart;
 
   const sw = document.getElementById('s-work');
   const sb = document.getElementById('s-break');
+  const sg = document.getElementById('s-gorev');
   const sn = document.getElementById('s-net');
 
   if (sw) sw.textContent  = toHM(workMs);
-  if (sb) sb.textContent = toHM(breakMs);
-  if (sn) sn.textContent   = toHM(Math.max(0, workMs - breakMs));
+  if (sb) sb.textContent  = toHM(breakMs);
+  if (sg) sg.textContent  = toHM(gorevMs);
+  if (sn) sn.textContent  = toHM(Math.max(0, workMs - breakMs));
 }
 
 // ── ACTIONS ───────────────────────────────────────────────────
@@ -1585,12 +1634,15 @@ function syncUI() {
   try {
     const working  = state.isWorking;
     const onBreak  = state.isOnBreak;
+    const onGorev  = state.isOnGorev;
     const past = getTodayAccruals();
 
     document.getElementById('btn-clock-in').disabled  = working;
     document.getElementById('btn-clock-out').disabled = !working;
-    document.getElementById('btn-break-start').disabled = !working || onBreak;
+    document.getElementById('btn-break-start').disabled = !working || onBreak || onGorev;
     document.getElementById('btn-break-end').disabled   = !onBreak;
+    document.getElementById('btn-gorev-start').disabled = !working || onGorev || onBreak;
+    document.getElementById('btn-gorev-end').disabled   = !onGorev;
 
     const wBadge = document.getElementById('work-status-badge');
     const wText  = document.getElementById('work-status-text');
@@ -1606,6 +1658,10 @@ function syncUI() {
     } else if (onBreak) {
       if (wBadge) wBadge.className = 'status-badge working';
       if (wText) wText.textContent = 'Molada';
+    } else if (onGorev) {
+      if (wBadge) wBadge.className = 'status-badge working';
+      if (wText) wText.textContent = 'Görevde';
+      if (wChrono) wChrono.className = 'chrono-time';
     } else {
       if (wBadge) wBadge.className = 'status-badge working';
       if (wText) wText.textContent = 'Çalışıyor';
@@ -1627,6 +1683,22 @@ function syncUI() {
         bChrono.textContent = toHMS(past.pastBreakMs);
       }
     }
+
+    const gBadge = document.getElementById('gorev-status-badge');
+    const gText  = document.getElementById('gorev-status-text');
+    const gChrono = document.getElementById('gorev-chrono');
+    if (gBadge && gText && gChrono) {
+      if (onGorev) {
+        gBadge.className = 'status-badge working';
+        gText.textContent = 'Görevde';
+        gChrono.className = 'chrono-time working';
+      } else {
+        gBadge.className = 'status-badge';
+        gText.textContent = 'Görevde Değilsiniz';
+        gChrono.className = 'chrono-time idle';
+        gChrono.textContent = toHMS(past.pastGorevMs);
+      }
+    }
   } catch(e) { console.error("UI Sync Hatası:", e); }
 }
 
@@ -1646,6 +1718,7 @@ function clockIn() {
 function clockOut() {
   if (!state.isWorking) return;
   if (state.isOnBreak) { breakEnd(); }
+  if (state.isOnGorev) { gorevEnd(); }
   state.isWorking = false;
   addRecord('cikis');
   state.workStart = null;
@@ -1683,12 +1756,37 @@ function breakEnd() {
   showToast('🔙 Moladan dönüldü – ' + nowStr());
 }
 
+function gorevStart() {
+  if (!state.isWorking || state.isOnGorev) return;
+  state.isOnGorev  = true;
+  state.gorevStart = Date.now();
+  addRecord('gorev-bas');
+  syncUI();
+  renderTodayLog();
+  renderBreakLog();
+  showToast('🚗 Göreve çıkıldı – ' + nowStr());
+}
+
+function gorevEnd() {
+  if (!state.isOnGorev) return;
+  state.isOnGorev  = false;
+  addRecord('gorev-bit');
+  state.gorevStart = null;
+  saveState();
+  syncUI();
+  renderTodayLog();
+  renderBreakLog();
+  showToast('🏠 Görevden dönüldü – ' + nowStr());
+}
+
 // ── RENDER LOGS ───────────────────────────────────────────────
 const typeLabels = {
-  'giris':    { label: 'İş Girişi',         cls: 'giris',    icon: '✅' },
-  'cikis':    { label: 'İş Çıkışı',         cls: 'cikis',    icon: '🚪' },
-  'mola-bas': { label: 'Mola Başlangıcı',   cls: 'mola-bas', icon: '☕' },
-  'mola-bit': { label: 'Moladan Dönüş',     cls: 'mola-bit', icon: '🔙' },
+  'giris':     { label: 'İş Girişi',         cls: 'giris',     icon: '✅' },
+  'cikis':     { label: 'İş Çıkışı',         cls: 'cikis',     icon: '🚪' },
+  'mola-bas':  { label: 'Mola Başlangıcı',   cls: 'mola-bas',  icon: '☕' },
+  'mola-bit':  { label: 'Moladan Dönüş',     cls: 'mola-bit',  icon: '🔙' },
+  'gorev-bas': { label: 'Göreve Çıkış',      cls: 'gorev-bas', icon: '🚗' },
+  'gorev-bit': { label: 'Görevden Dönüş',   cls: 'gorev-bit', icon: '🏠' },
 };
 
 function renderTodayLog() {
@@ -1702,7 +1800,7 @@ function renderTodayLog() {
   el.innerHTML = recs.map(r => {
     const t = typeLabels[r.type];
     if (!t) return '';
-    const isMola = r.type === 'mola-bas' || r.type === 'mola-bit';
+    const isMola = r.type === 'mola-bas' || r.type === 'mola-bit' || r.type === 'gorev-bas' || r.type === 'gorev-bit';
     const displayName = (isMola && r.label && r.label.trim())
       ? `${t.icon} ${r.label}`
       : `${t.icon} ${t.label}`;
@@ -1728,9 +1826,9 @@ function renderTodayLog() {
 function renderBreakLog() {
   const el = document.getElementById('break-log');
   if (!el) return;
-  const recs = todayRecords().filter(r => r && (r.type === 'mola-bas' || r.type === 'mola-bit')).sort((a, b) => (a.ts || 0) - (b.ts || 0)).reverse();
+  const recs = todayRecords().filter(r => r && (r.type === 'mola-bas' || r.type === 'mola-bit' || r.type === 'gorev-bas' || r.type === 'gorev-bit')).sort((a, b) => (a.ts || 0) - (b.ts || 0)).reverse();
   if (!recs.length) {
-    el.innerHTML = `<div class="log-empty"><div class="big">☕</div>Henüz mola kaydı yok.</div>`;
+    el.innerHTML = `<div class="log-empty"><div class="big">🚗</div>Henüz hareket kaydı yok.</div>`;
     return;
   }
   el.innerHTML = recs.map(r => {
@@ -1900,13 +1998,15 @@ function renderDayDetail(dateStr) {
   emptyEl.style.display  = 'none';
 
   // Süre hesapla (sadece mesai kayıtlarından)
-  let workMs = 0, breakMs = 0;
-  let lastIn = null, lastBreakStart = null;
+  let workMs = 0, breakMs = 0, gorevMs = 0;
+  let lastIn = null, lastBreakStart = null, lastGorevStart = null;
   for (const r of recs) {
-    if (r.type === 'giris')    { lastIn = r.ts; }
-    if (r.type === 'cikis')    { if (lastIn) { workMs += r.ts - lastIn; lastIn = null; } }
-    if (r.type === 'mola-bas') { lastBreakStart = r.ts; }
-    if (r.type === 'mola-bit') { if (lastBreakStart) { breakMs += r.ts - lastBreakStart; lastBreakStart = null; } }
+    if (r.type === 'giris')     { lastIn = r.ts; }
+    if (r.type === 'cikis')     { if (lastIn) { workMs += r.ts - lastIn; lastIn = null; } }
+    if (r.type === 'mola-bas')  { lastBreakStart = r.ts; }
+    if (r.type === 'mola-bit')  { if (lastBreakStart) { breakMs += r.ts - lastBreakStart; lastBreakStart = null; } }
+    if (r.type === 'gorev-bas') { lastGorevStart = r.ts; }
+    if (r.type === 'gorev-bit') { if (lastGorevStart) { gorevMs += r.ts - lastGorevStart; lastGorevStart = null; } }
   }
   document.getElementById('cal-s-work').textContent  = toHM(workMs);
   document.getElementById('cal-s-break').textContent = toHM(breakMs);
@@ -1920,7 +2020,7 @@ function renderDayDetail(dateStr) {
     listHtml += recs.map(r => {
       const t = typeLabels[r.type];
       if (!t) return '';
-      const isMola = r.type === 'mola-bas' || r.type === 'mola-bit';
+      const isMola = r.type === 'mola-bas' || r.type === 'mola-bit' || r.type === 'gorev-bas' || r.type === 'gorev-bit';
       const displayName = (isMola && r.label && r.label.trim()) ? `${t.icon} ${r.label}` : `${t.icon} ${t.label}`;
       const noteHtml = (isMola && r.note && r.note.trim())
         ? `<div style="font-size:.75rem;color:var(--muted);margin-top:3px;padding-left:18px;">${r.note}</div>` : '';
@@ -1994,15 +2094,39 @@ function renderDayDetail(dateStr) {
   listEl.innerHTML = listHtml;
 }
 
+// ── ÖZEL ONAY MODALI (confirm() yerine) ────────────────────────
+let _confirmCallback = null;
+
+function showConfirm(message, callback) {
+  _confirmCallback = callback;
+  document.getElementById('confirm-message').textContent = message;
+  document.getElementById('confirm-overlay').style.display = 'flex';
+}
+
+function confirmOk() {
+  document.getElementById('confirm-overlay').style.display = 'none';
+  if (typeof _confirmCallback === 'function') {
+    var cb = _confirmCallback;
+    _confirmCallback = null;
+    cb();
+  }
+}
+
+function confirmCancel() {
+  document.getElementById('confirm-overlay').style.display = 'none';
+  _confirmCallback = null;
+}
+
 function deleteTrackingEntryFromCal(mode, idx) {
-  if (!confirm('Bu kayıt silinsin mi?')) return;
-  var key  = (mode === 'izin') ? 'mesai_izin_records' : 'mesai_extra_records';
-  var data = JSON.parse(localStorage.getItem(key) || '[]');
-  data.splice(idx, 1);
-  localStorage.setItem(key, JSON.stringify(data));
-  loadTrackingData();
-  renderCalendar();
-  if (calSelectedDate) renderDayDetail(calSelectedDate);
+  showConfirm('Bu kayıt silinsin mi?', function() {
+    var key  = (mode === 'izin') ? 'mesai_izin_records' : 'mesai_extra_records';
+    var data = JSON.parse(localStorage.getItem(key) || '[]');
+    data.splice(idx, 1);
+    localStorage.setItem(key, JSON.stringify(data));
+    loadTrackingData();
+    renderCalendar();
+    if (calSelectedDate) renderDayDetail(calSelectedDate);
+  });
 }
 
 // ── GEÇMİŞE KAYIT EKLEME ─────────────────────────────────────
@@ -2038,7 +2162,7 @@ function selectAddType(btn) {
   document.querySelectorAll('.add-type-btn').forEach(function(b){ b.classList.remove('active'); });
   btn.classList.add('active');
   var t = btn.getAttribute('data-type');
-  var isMola = t === 'mola-bas' || t === 'mola-bit';
+  var isMola = t === 'mola-bas' || t === 'mola-bit' || t === 'gorev-bas' || t === 'gorev-bit';
   document.getElementById('add-rec-mola-fields').style.display = isMola ? 'block' : 'none';
 }
 
@@ -2071,8 +2195,8 @@ function saveAddRecord() {
     ts:   ts,
   };
 
-  // Mola alanları
-  if (recType === 'mola-bas' || recType === 'mola-bit') {
+  // Mola veya Görev alanları
+  if (recType === 'mola-bas' || recType === 'mola-bit' || recType === 'gorev-bas' || recType === 'gorev-bit') {
     newRec.label = document.getElementById('add-rec-label').value.trim();
     newRec.note  = document.getElementById('add-rec-note').value.trim();
   }
@@ -2096,7 +2220,7 @@ function saveAddRecord() {
   updateChronos();
   updateSummary();
 
-  var typeNames = { giris:'İş Girişi', cikis:'İş Çıkışı', 'mola-bas':'Mola Başlangıcı', 'mola-bit':'Moladan Dönüş' };
+  var typeNames = { giris:'İş Girişi', cikis:'İş Çıkışı', 'mola-bas':'Mola Başlangıcı', 'mola-bit':'Moladan Dönüş', 'gorev-bas':'Göreve Çıkış', 'gorev-bit':'Görevden Dönüş' };
   showToast('＋ ' + (typeNames[recType]||recType) + ' kaydı eklendi.');
 }
 
@@ -2112,38 +2236,49 @@ function renderRecords() {
 }
 
 function deleteRecord(id) {
-  if (!confirm('Bu kaydı silmek istediğinize emin misiniz?')) return;
-  state.records = state.records.filter(r => r && r.id !== id);
-  try { localStorage.setItem('mesai_records', JSON.stringify(state.records)); } catch(e){}
-  
-  if (state.isWorking) {
-    const girisRecords = state.records.filter(r => r && r.date === dateKey() && r.type === 'giris').sort((a, b) => a.ts - b.ts);
-    if (girisRecords.length > 0) {
-      state.workStart = girisRecords[girisRecords.length - 1].ts;
-    } else {
-      state.isWorking = false;
-      state.workStart = null;
+  showConfirm('Bu kaydı silmek istediğinize emin misiniz?', function() {
+    state.records = state.records.filter(r => r && r.id !== id);
+    try { localStorage.setItem('mesai_records', JSON.stringify(state.records)); } catch(e){}
+    
+    if (state.isWorking) {
+      const girisRecords = state.records.filter(r => r && r.date === dateKey() && r.type === 'giris').sort((a, b) => a.ts - b.ts);
+      if (girisRecords.length > 0) {
+        state.workStart = girisRecords[girisRecords.length - 1].ts;
+      } else {
+        state.isWorking = false;
+        state.workStart = null;
+      }
     }
-  }
-  if (state.isOnBreak) {
-    const molaRecords = state.records.filter(r => r && r.date === dateKey() && r.type === 'mola-bas').sort((a, b) => a.ts - b.ts);
-    if (molaRecords.length > 0) {
-      state.breakStart = molaRecords[molaRecords.length - 1].ts;
-    } else {
-      state.isOnBreak = false;
-      state.breakStart = null;
+    if (state.isOnBreak) {
+      const molaRecords = state.records.filter(r => r && r.date === dateKey() && r.type === 'mola-bas').sort((a, b) => a.ts - b.ts);
+      if (molaRecords.length > 0) {
+        state.breakStart = molaRecords[molaRecords.length - 1].ts;
+      } else {
+        state.isOnBreak = false;
+        state.breakStart = null;
+      }
     }
-  }
 
-  saveState();
-  syncUI();
-  renderCalendar();
-  if (calSelectedDate) renderDayDetail(calSelectedDate);
-  renderTodayLog();
-  renderBreakLog();
-  updateChronos();
-  updateSummary();
-  showToast('🗑 Kayıt silindi.');
+    if (state.isOnGorev) {
+      const gorevRecords = state.records.filter(r => r && r.date === dateKey() && r.type === 'gorev-bas').sort((a, b) => a.ts - b.ts);
+      if (gorevRecords.length > 0) {
+        state.gorevStart = gorevRecords[gorevRecords.length - 1].ts;
+      } else {
+        state.isOnGorev = false;
+        state.gorevStart = null;
+      }
+    }
+
+    saveState();
+    syncUI();
+    renderCalendar();
+    if (calSelectedDate) renderDayDetail(calSelectedDate);
+    renderTodayLog();
+    renderBreakLog();
+    updateChronos();
+    updateSummary();
+    showToast('🗑 Kayıt silindi.');
+  });
 }
 
 
@@ -2164,8 +2299,8 @@ function openEditModal(id) {
   document.getElementById('edit-time').value = rec.time.slice(0,5);
   document.getElementById('edit-warning').classList.remove('show');
 
-  // Mola kayıtları için ek alanlar
-  const isMola = rec.type === 'mola-bas' || rec.type === 'mola-bit';
+  // Mola veya Görev kayıtları için ek alanlar
+  const isMola = rec.type === 'mola-bas' || rec.type === 'mola-bit' || rec.type === 'gorev-bas' || rec.type === 'gorev-bit';
   document.getElementById('edit-label-field').style.display = isMola ? 'block' : 'none';
   document.getElementById('edit-note-field').style.display  = isMola ? 'block' : 'none';
   if (isMola) {
@@ -2216,8 +2351,8 @@ function saveEdit() {
   rec.date = newDateKey;
   rec.time = `${pad(h)}:${pad(m)}:00`;
 
-  // Mola ise label ve note alanlarını da kaydet
-  if (rec.type === 'mola-bas' || rec.type === 'mola-bit') {
+  // Mola veya Görev ise label ve note alanlarını da kaydet
+  if (rec.type === 'mola-bas' || rec.type === 'mola-bit' || rec.type === 'gorev-bas' || rec.type === 'gorev-bit') {
     const lv = document.getElementById('edit-label').value.trim();
     const nv = document.getElementById('edit-note').value.trim();
     rec.label = lv || '';
@@ -2234,6 +2369,12 @@ function saveEdit() {
     const molaRecords = state.records.filter(r => r && r.date === dateKey() && r.type === 'mola-bas').sort((a, b) => a.ts - b.ts);
     if (molaRecords.length > 0) {
       state.breakStart = molaRecords[molaRecords.length - 1].ts;
+    }
+  }
+  if (state.isOnGorev) {
+    const gorevRecords = state.records.filter(r => r && r.date === dateKey() && r.type === 'gorev-bas').sort((a, b) => a.ts - b.ts);
+    if (gorevRecords.length > 0) {
+      state.gorevStart = gorevRecords[gorevRecords.length - 1].ts;
     }
   }
 
@@ -2507,13 +2648,14 @@ function saveTrackingEntry() {
 }
 
 function deleteTrackingEntry(mode, idx) {
-  if (!confirm('Bu kayıt silinsin mi?')) return;
-  var key  = (mode === 'izin') ? 'mesai_izin_records' : 'mesai_extra_records';
-  var data = JSON.parse(localStorage.getItem(key) || '[]');
-  data.splice(idx, 1);
-  localStorage.setItem(key, JSON.stringify(data));
-  loadTrackingData();
-  renderCalendar();
+  showConfirm('Bu kayıt silinsin mi?', function() {
+    var key  = (mode === 'izin') ? 'mesai_izin_records' : 'mesai_extra_records';
+    var data = JSON.parse(localStorage.getItem(key) || '[]');
+    data.splice(idx, 1);
+    localStorage.setItem(key, JSON.stringify(data));
+    loadTrackingData();
+    renderCalendar();
+  });
 }
 
 document.addEventListener('DOMContentLoaded', loadTrackingData);
@@ -2633,7 +2775,7 @@ function exportAllExcel() {
     var molaStr = totalMolaDk > 0 ? Math.floor(totalMolaDk/60) + 's ' + (totalMolaDk%60) + 'dk' : '';
     // Günlük tüm olayları da tek satırda listele
     var olaylar = dayRecs.map(function(r){
-      var lbl = {giris:'Giriş',cikis:'Çıkış','mola-bas':'Mola Başlangıç','mola-bit':'Mola Bitiş'}[r.type]||r.type;
+      var lbl = {giris:'Giriş',cikis:'Çıkış','mola-bas':'Mola Başlangıç','mola-bit':'Mola Bitiş','gorev-bas':'Göreve Çıkış','gorev-bit':'Görevden Dönüş'}[r.type]||r.type;
       return lbl + ' ' + (r.time||'');
     }).join(' | ');
     workRows.push([d, girisTime, cikisTime, totalCalisDk, molaStr, molaBas.length, olaylar]);
@@ -2646,11 +2788,12 @@ function exportAllExcel() {
   applyStyles(wsWork, workHeaders, workRows);
   XLSX.utils.book_append_sheet(wb, wsWork, 'İş Kayıtları');
 
-  // ─── SAYFA 2: MOLA DETAYLARI ───
-  var breakRows = [];
+  // ─── SAYFA 2: HAREKET DETAYLARI ───
+  var hareketRows = [];
   for (var di2 = 0; di2 < dateKeys.length; di2++) {
     var d2 = dateKeys[di2];
     var dayRecs2 = dayMap[d2].slice().sort(function(a,b){ return (a.ts||0)-(b.ts||0); });
+    // Mola kayıtları
     var molaBas2 = dayRecs2.filter(function(r){ return r.type === 'mola-bas'; });
     var molaBit2 = dayRecs2.filter(function(r){ return r.type === 'mola-bit'; });
     for (var mi2 = 0; mi2 < molaBas2.length; mi2++) {
@@ -2661,33 +2804,43 @@ function exportAllExcel() {
         var dk = Math.round((bitRec.ts - basRec.ts) / 60000);
         sureDk = Math.floor(dk/60) + 's ' + (dk%60) + 'dk';
       }
-      // Mola adı: basRec.label varsa, yoksa bitRec.label, yoksa varsayılan
-      var molaAdi = (basRec.label && basRec.label.trim())
-        ? basRec.label
-        : (bitRec && bitRec.label && bitRec.label.trim() ? bitRec.label : '');
-      // Açıklama: basRec.note veya bitRec.note
-      var molaAciklama = (basRec.note && basRec.note.trim())
-        ? basRec.note
-        : (bitRec && bitRec.note && bitRec.note.trim() ? bitRec.note : '');
-
-      breakRows.push([
+      hareketRows.push([
         d2,
+        'Mola',
         basRec.time || '',
         bitRec ? (bitRec.time || '') : 'Bitmedi',
-        sureDk,
-        (mi2+1) + '. Mola',
-        molaAdi,
-        molaAciklama
+        sureDk
+      ]);
+    }
+    // Görev kayıtları
+    var gorevBas2 = dayRecs2.filter(function(r){ return r.type === 'gorev-bas'; });
+    var gorevBit2 = dayRecs2.filter(function(r){ return r.type === 'gorev-bit'; });
+    for (var gi2 = 0; gi2 < gorevBas2.length; gi2++) {
+      var gBasRec = gorevBas2[gi2];
+      var gBitRec = gorevBit2[gi2] || null;
+      var gSureDk = '';
+      if (gBitRec && gBitRec.ts > gBasRec.ts) {
+        var gDk = Math.round((gBitRec.ts - gBasRec.ts) / 60000);
+        gSureDk = Math.floor(gDk/60) + 's ' + (gDk%60) + 'dk';
+      }
+      hareketRows.push([
+        d2,
+        'Görev',
+        gBasRec.time || '',
+        gBitRec ? (gBitRec.time || '') : 'Bitmedi',
+        gSureDk
       ]);
     }
   }
-  var breakHeaders = ['Tarih', 'Mola Başlangıç', 'Mola Bitiş', 'Süre', 'Mola No', 'Mola Adı', 'Açıklama'];
-  var wsBreak = XLSX.utils.aoa_to_sheet([breakHeaders].concat(breakRows));
-  wsBreak['!cols'] = [{wch:14},{wch:16},{wch:14},{wch:12},{wch:12},{wch:22},{wch:36}];
-  wsBreak['!rows'] = [{hpt:20}];
-  for (var j = 1; j <= breakRows.length; j++) { wsBreak['!rows'].push({hpt:18}); }
-  applyStyles(wsBreak, breakHeaders, breakRows);
-  XLSX.utils.book_append_sheet(wb, wsBreak, 'Mola Detayları');
+  // Tarihe göre sırala
+  hareketRows.sort(function(a,b){ return b[0].localeCompare(a[0]); });
+  var hareketHeaders = ['Tarih', 'Tür', 'Başlangıç', 'Bitiş', 'Süre'];
+  var wsHareket = XLSX.utils.aoa_to_sheet([hareketHeaders].concat(hareketRows));
+  wsHareket['!cols'] = [{wch:14},{wch:12},{wch:14},{wch:14},{wch:12}];
+  wsHareket['!rows'] = [{hpt:20}];
+  for (var j = 1; j <= hareketRows.length; j++) { wsHareket['!rows'].push({hpt:18}); }
+  applyStyles(wsHareket, hareketHeaders, hareketRows);
+  XLSX.utils.book_append_sheet(wb, wsHareket, 'Hareket Detayları');
 
   // ─── SAYFA 3: İZİN KAYITLARI ───
   var izinRaw  = JSON.parse(localStorage.getItem('mesai_izin_records') || '[]');
@@ -3317,6 +3470,23 @@ function catEmoji(cat) {
   return map[cat] || '';
 }
 
+// ── GECİKME TOLERANSI ────────────────────────────────────────────
+// Standart giriş saatinden 29 dk 59 sn sonrasına kadar "geç" sayılmaz
+var LATE_TOLERANCE_MINUTES = 29; // 08:00 → 08:29 toleranslı
+
+function isLateArrival(timeStr, schedStart) {
+  // timeStr: 'HH:MM', schedStart: 'HH:MM'
+  // Standart başlangıçtan LATE_TOLERANCE_MINUTES dk sonrasına kadar tolerans
+  var arrived = toMinGlobal(timeStr);
+  var stdStart = toMinGlobal(schedStart);
+  return arrived > stdStart + LATE_TOLERANCE_MINUTES;
+}
+
+function toMinGlobal(timeStr) {
+  var p = (timeStr || '').split(':');
+  return parseInt(p[0] || 0) * 60 + parseInt(p[1] || 0);
+}
+
 // ── BAŞARIM KONTROLCÜSÜ ────────────────────────────────────────
 function checkAchievements(trigger, meta) {
   if (!isScheduleLocked()) return;
@@ -3327,8 +3497,7 @@ function checkAchievements(trigger, meta) {
 
   // Yardımcılar
   function toMin(timeStr) {
-    var p = (timeStr||'').split(':');
-    return parseInt(p[0]||0)*60 + parseInt(p[1]||0);
+    return toMinGlobal(timeStr);
   }
   function totalWorkMs() {
     var ms = 0, lastIn = null;
@@ -3417,12 +3586,12 @@ function checkAchievements(trigger, meta) {
     if (lateExits >= 3) unlockAchievement('gece_baykusu');
     // Mükemmel ay
     if (sched && sched.wdStart) {
-      var stdStart = toMin(sched.wdStart);
       var monthEntries = recs.filter(function(r){
         return r.type==='giris' && r.date && r.date.startsWith(monthKey);
       });
+      // Tolerans dahilinde giriş yapıldıysa "geç" sayılmaz
       var perfectMonth = monthEntries.length > 0 && monthEntries.every(function(r){
-        return toMin(r.time) <= stdStart;
+        return !isLateArrival(r.time, sched.wdStart);
       });
       if (perfectMonth && monthEntries.length >= 15) unlockAchievement('mukemmel_ay');
     }
@@ -3747,10 +3916,12 @@ function importJSON(event) {
         <label style="display:block; font-size:.72rem; font-weight:700; text-transform:uppercase;
                       letter-spacing:1.5px; color:var(--muted); margin-bottom:.5rem;">Kayıt Türü</label>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;" id="add-rec-type-btns">
-          <button type="button" class="add-type-btn active" data-type="giris"    onclick="selectAddType(this)">✅ İş Girişi</button>
-          <button type="button" class="add-type-btn"        data-type="cikis"    onclick="selectAddType(this)">🚪 İş Çıkışı</button>
-          <button type="button" class="add-type-btn"        data-type="mola-bas" onclick="selectAddType(this)">☕ Mola Başlangıç</button>
-          <button type="button" class="add-type-btn"        data-type="mola-bit" onclick="selectAddType(this)">🔙 Moladan Dönüş</button>
+          <button type="button" class="add-type-btn active" data-type="giris"     onclick="selectAddType(this)">✅ İş Girişi</button>
+          <button type="button" class="add-type-btn"        data-type="cikis"     onclick="selectAddType(this)">🚪 İş Çıkışı</button>
+          <button type="button" class="add-type-btn"        data-type="mola-bas"  onclick="selectAddType(this)">☕ Mola Başlangıç</button>
+          <button type="button" class="add-type-btn"        data-type="mola-bit"  onclick="selectAddType(this)">🔙 Moladan Dönüş</button>
+          <button type="button" class="add-type-btn"        data-type="gorev-bas" onclick="selectAddType(this)">🚗 Göreve Çıkış</button>
+          <button type="button" class="add-type-btn"        data-type="gorev-bit" onclick="selectAddType(this)">🏠 Görevden Dönüş</button>
         </div>
       </div>
       <!-- Saat -->
@@ -4006,6 +4177,28 @@ function importJSON(event) {
 <style>
   #reset-overlay.open { display: flex; }
 </style>
+
+<!-- Evrensel Onay Modalı (confirm() yerine) -->
+<div id="confirm-overlay" style="
+  display:none; position:fixed; inset:0; z-index:9500;
+  background:rgba(0,0,0,.75); backdrop-filter:blur(6px);
+  align-items:center; justify-content:center; padding:1rem;
+">
+  <div style="
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:18px; padding:1.75rem 1.5rem; width:100%; max-width:340px;
+    box-shadow:0 24px 60px rgba(0,0,0,.6);
+    animation:modal-in .2s cubic-bezier(.34,1.56,.64,1);
+    text-align:center;
+  ">
+    <div style="font-size:2.2rem; margin-bottom:.75rem;">🗑️</div>
+    <div id="confirm-message" style="font-size:.92rem; color:var(--text); line-height:1.55; margin-bottom:1.5rem;"></div>
+    <div style="display:flex; gap:10px;">
+      <button class="btn btn-secondary" onclick="confirmCancel()" style="flex:1;">İptal</button>
+      <button class="btn btn-danger"    onclick="confirmOk()"     style="flex:1;">Sil</button>
+    </div>
+  </div>
+</div>
 
 </body>
 </html>
