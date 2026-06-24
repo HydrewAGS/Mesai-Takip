@@ -250,20 +250,26 @@
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    padding: 1.25rem 1.5rem;
+    padding: 1rem .75rem;
+    min-width: 0;
+    overflow: hidden;
   }
   .summary-card .s-label {
-    font-size: .72rem;
+    font-size: .65rem;
     text-transform: uppercase;
-    letter-spacing: 1.5px;
+    letter-spacing: 1px;
     color: var(--muted);
-    margin-bottom: 6px;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .summary-card .s-value {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 1.5rem;
+    font-size: clamp(.85rem, 3.5vw, 1.35rem);
     font-weight: 600;
     color: var(--text);
+    white-space: nowrap;
   }
   .summary-card.amber .s-value { color: var(--amber); }
   .summary-card.green .s-value { color: var(--green); }
@@ -343,7 +349,6 @@
     padding: 8px 0;
   }
   .cal-day {
-    aspect-ratio: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -354,26 +359,33 @@
     font-weight: 500;
     position: relative;
     transition: background .12s;
-    gap: 3px;
-    padding: 4px 2px;
+    gap: 2px;
+    padding: 6px 2px;
+    min-height: 44px;
   }
   .cal-day:hover { background: var(--panel); }
   .cal-day.other-month { color: var(--muted); opacity: .4; cursor: default; }
   .cal-day.other-month:hover { background: none; }
   .cal-day.today { font-weight: 700; color: var(--amber); }
-  .cal-day.has-record::after {
-    content: '';
+  .cal-day .cal-dots {
+    display: flex; gap: 3px; align-items: center; justify-content: center;
+    min-height: 7px;
+  }
+  .cal-dot {
     width: 5px; height: 5px;
     border-radius: 50%;
-    background: var(--amber);
     display: block;
+    flex-shrink: 0;
   }
+  .cal-dot.amber { background: var(--amber); }
+  .cal-dot.green { background: var(--green); }
   .cal-day.selected {
     background: var(--amber) !important;
     color: #0B1929 !important;
     font-weight: 700;
   }
-  .cal-day.selected::after { background: #0B1929; }
+  .cal-day.selected .cal-dot.amber { background: #0B1929; }
+  .cal-day.selected .cal-dot.green { background: rgba(0,0,0,.4); }
   .cal-day.today.selected { color: #0B1929 !important; }
 
   .record-table { width: 100%; border-collapse: collapse; }
@@ -801,6 +813,16 @@
   </div>
   <div style="display:flex;align-items:center;gap:8px;position:relative;">
     <div id="live-clock">--:--:--</div>
+    <button id="achievements-btn" onclick="openAchievementsModal()" title="Başarımlar" style="
+      background:var(--panel);border:1px solid var(--border);border-radius:20px;
+      color:var(--muted);font-size:1rem;padding:6px 10px;cursor:pointer;
+      line-height:1;transition:color .15s,border-color .15s;position:relative;
+    ">🏆<span id="ach-new-badge" style="
+      display:none;position:absolute;top:-4px;right:-4px;
+      background:var(--amber);color:#0B1929;border-radius:50%;
+      width:14px;height:14px;font-size:.6rem;font-weight:700;
+      align-items:center;justify-content:center;
+    "></span></button>
     <button id="settings-btn" onclick="toggleSettings(event)" title="Ayarlar" style="
       background:var(--panel);border:1px solid var(--border);border-radius:20px;
       color:var(--muted);font-size:1rem;padding:6px 10px;cursor:pointer;
@@ -1040,13 +1062,13 @@
         display:flex; align-items:center; justify-content:space-between;
       ">
         <span id="cal-detail-title"></span>
-        <button onclick="exportDayCSV()" style="
-          background:var(--panel); border:1px solid var(--border);
-          color:var(--muted); border-radius:6px; padding:4px 10px;
-          cursor:pointer; font-size:.75rem; font-weight:500;
+        <button onclick="openAddRecordModal()" style="
+          background:var(--amber); border:1px solid var(--amber);
+          color:#0B1929; border-radius:6px; padding:5px 12px;
+          cursor:pointer; font-size:.78rem; font-weight:700;
           transition:all .15s; letter-spacing:0; text-transform:none;
-        " onmouseover="this.style.borderColor='var(--amber)';this.style.color='var(--amber)'"
-           onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">⬇️ CSV</button>
+          display:flex; align-items:center; gap:5px;
+        ">＋ Kayıt Ekle</button>
       </div>
 
       <!-- Özet kartları -->
@@ -1070,7 +1092,14 @@
     </div>
 
     <div id="cal-empty" style="display:none;">
-      <div class="log-empty"><div class="big">📅</div>Bu güne ait kayıt yok.</div>
+      <div class="log-empty" style="flex-direction:column; gap:.75rem;">
+        <div><div class="big">📅</div>Bu güne ait kayıt yok.</div>
+        <button onclick="openAddRecordModal()" style="
+          background:var(--amber); border:1px solid var(--amber);
+          color:#0B1929; border-radius:8px; padding:9px 20px;
+          cursor:pointer; font-size:.85rem; font-weight:700;
+        ">＋ Kayıt Ekle</button>
+      </div>
     </div>
 
   </div>
@@ -1606,6 +1635,9 @@ function clockIn() {
   state.isWorking = true;
   state.workStart = Date.now();
   addRecord('giris');
+  var nowD = new Date();
+  checkAchievements('clockIn', {});
+  checkAchievements('addRecord', { type:'giris', time:pad(nowD.getHours())+':'+pad(nowD.getMinutes()), date:dateKey(), dow:nowD.getDay() });
   syncUI();
   renderTodayLog();
   showToast('✅ İşe giriş kaydedildi – ' + nowStr());
@@ -1618,6 +1650,9 @@ function clockOut() {
   addRecord('cikis');
   state.workStart = null;
   saveState();
+  var nowD2 = new Date();
+  checkAchievements('clockOut', { time:pad(nowD2.getHours())+':'+pad(nowD2.getMinutes()), date:dateKey() });
+  checkAchievements('addRecord', { type:'cikis', time:pad(nowD2.getHours())+':'+pad(nowD2.getMinutes()), date:dateKey(), dow:nowD2.getDay() });
   syncUI();
   renderTodayLog();
   renderBreakLog();
@@ -1629,6 +1664,7 @@ function breakStart() {
   state.isOnBreak  = true;
   state.breakStart = Date.now();
   addRecord('mola-bas');
+  checkAchievements('breakStart', {});
   syncUI();
   renderTodayLog();
   renderBreakLog();
@@ -1737,10 +1773,22 @@ function renderCalendar() {
 
   titleEl.textContent = MONTHS_TR[calMonth] + ' ' + calYear;
 
-  // Bu ayda kayıtlı günleri bul
+  // Bu ayda mesai kayıtlı günler (amber nokta)
+  const monthPrefix = calYear + '-' + pad(calMonth + 1);
   const recordDays = new Set(
     state.records
-      .filter(r => r && r.date && r.date.startsWith(calYear + '-' + pad(calMonth + 1)))
+      .filter(r => r && r.date && r.date.startsWith(monthPrefix))
+      .map(r => r.date)
+  );
+
+  // İzin/ekstra mesai kayıtlı günler (yeşil nokta)
+  var izinRecs  = [];
+  var mesaiRecs = [];
+  try { izinRecs  = JSON.parse(localStorage.getItem('mesai_izin_records')  || '[]'); } catch(e) {}
+  try { mesaiRecs = JSON.parse(localStorage.getItem('mesai_extra_records') || '[]'); } catch(e) {}
+  const trackingDays = new Set(
+    [...izinRecs, ...mesaiRecs]
+      .filter(r => r && r.date && r.date.startsWith(monthPrefix))
       .map(r => r.date)
   );
 
@@ -1770,6 +1818,7 @@ function renderCalendar() {
       dateStr = calYear + '-' + pad(calMonth + 1) + '-' + pad(day);
       if (dateStr === today) cls += ' today';
       if (recordDays.has(dateStr)) cls += ' has-record';
+      if (trackingDays.has(dateStr)) cls += ' has-tracking';
     } else {
       // Sonraki ay
       day = i - startDow - daysInMonth + 1;
@@ -1780,7 +1829,21 @@ function renderCalendar() {
     }
     if (dateStr === calSelectedDate) cls += ' selected';
     const clickable = cls.includes('other-month') ? '' : `onclick="calSelectDay('${dateStr}')"`;
-    html += `<div class="${cls}" ${clickable}>${day}</div>`;
+    // Nokta(lar)
+    let dotsHtml = '';
+    if (!cls.includes('other-month')) {
+      const hasMesai    = recordDays.has(dateStr);
+      const hasTracking = trackingDays.has(dateStr);
+      if (hasMesai || hasTracking) {
+        dotsHtml = '<div class="cal-dots">' +
+          (hasMesai    ? '<span class="cal-dot amber"></span>' : '') +
+          (hasTracking ? '<span class="cal-dot green"></span>' : '') +
+          '</div>';
+      } else {
+        dotsHtml = '<div class="cal-dots"></div>';
+      }
+    }
+    html += `<div class="${cls}" ${clickable}>${day}${dotsHtml}</div>`;
   }
   gridEl.innerHTML = html;
 }
@@ -1865,19 +1928,99 @@ function renderDayDetail(dateStr) {
   }).join('');
 }
 
-function exportDayCSV() {
+// ── GEÇMİŞE KAYIT EKLEME ─────────────────────────────────────
+function openAddRecordModal() {
   if (!calSelectedDate) return;
-  const recs = state.records
-    .filter(r => r && r.date === calSelectedDate)
-    .sort((a, b) => (a.ts || 0) - (b.ts || 0));
-  const labels = { giris:'İş Girişi', cikis:'İş Çıkışı', 'mola-bas':'Mola Başlangıcı', 'mola-bit':'Moladan Dönüş' };
-  const rows = [['Tarih','Saat','Tür'], ...recs.map(r => [r.date, r.time, labels[r.type] || r.type])];
-  const csv = rows.map(r => r.join(',')).join('\n');
-  const a = document.createElement('a');
-  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent('\uFEFF' + csv);
-  a.download = 'mesai_' + calSelectedDate + '.csv';
-  a.click();
-  showToast('⬇️ CSV indirildi.');
+  // Tarihi göster
+  var parts = calSelectedDate.split('-');
+  var d = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
+  var DAYS_TR2 = ['Pazar','Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi'];
+  var MONTHS_TR3 = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+  document.getElementById('add-record-date-label').textContent =
+    DAYS_TR2[d.getDay()] + ', ' + d.getDate() + ' ' + MONTHS_TR3[d.getMonth()] + ' ' + d.getFullYear();
+  // Varsayılan saat: şu an
+  var now = new Date();
+  document.getElementById('add-rec-time').value = pad(now.getHours()) + ':' + pad(now.getMinutes());
+  // Varsayılan tür: giris
+  document.querySelectorAll('.add-type-btn').forEach(function(b) {
+    b.classList.toggle('active', b.getAttribute('data-type') === 'giris');
+  });
+  document.getElementById('add-rec-mola-fields').style.display = 'none';
+  document.getElementById('add-rec-label').value = '';
+  document.getElementById('add-rec-note').value  = '';
+  document.getElementById('add-rec-error').style.display = 'none';
+  document.getElementById('add-record-overlay').style.display = 'flex';
+}
+
+function closeAddRecordModal(e) {
+  if (e && e.target !== document.getElementById('add-record-overlay')) return;
+  document.getElementById('add-record-overlay').style.display = 'none';
+}
+
+function selectAddType(btn) {
+  document.querySelectorAll('.add-type-btn').forEach(function(b){ b.classList.remove('active'); });
+  btn.classList.add('active');
+  var t = btn.getAttribute('data-type');
+  var isMola = t === 'mola-bas' || t === 'mola-bit';
+  document.getElementById('add-rec-mola-fields').style.display = isMola ? 'block' : 'none';
+}
+
+function saveAddRecord() {
+  var activeBtn = document.querySelector('.add-type-btn.active');
+  if (!activeBtn) return;
+  var recType = activeBtn.getAttribute('data-type');
+  var timeVal = document.getElementById('add-rec-time').value;
+  var errEl   = document.getElementById('add-rec-error');
+
+  if (!timeVal) {
+    errEl.textContent = 'Lütfen bir saat girin.';
+    errEl.style.display = 'block'; return;
+  }
+  errEl.style.display = 'none';
+
+  // Timestamp hesapla
+  var parts = calSelectedDate.split('-');
+  var recDate = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
+  var timeParts = timeVal.split(':');
+  recDate.setHours(parseInt(timeParts[0]), parseInt(timeParts[1]), 0, 0);
+  var ts = recDate.getTime();
+
+  // Yeni kayıt oluştur
+  var newRec = {
+    id:   Date.now(),
+    type: recType,
+    date: calSelectedDate,
+    time: timeVal + ':00',
+    ts:   ts,
+  };
+
+  // Mola alanları
+  if (recType === 'mola-bas' || recType === 'mola-bit') {
+    newRec.label = document.getElementById('add-rec-label').value.trim();
+    newRec.note  = document.getElementById('add-rec-note').value.trim();
+  }
+
+  state.records.push(newRec);
+  saveState();
+
+  // Başarım kontrolü
+  var d2 = new Date(ts);
+  checkAchievements('addRecord', { type: recType, time: timeVal, date: calSelectedDate, dow: d2.getDay() });
+  if (recType === 'giris') checkAchievements('clockIn', {});
+  if (recType === 'cikis') checkAchievements('clockOut', { time: timeVal, date: calSelectedDate });
+  if (recType === 'mola-bas') checkAchievements('breakStart', {});
+
+  document.getElementById('add-record-overlay').style.display = 'none';
+  renderCalendar();
+  renderDayDetail(calSelectedDate);
+  syncUI();
+  renderTodayLog();
+  renderBreakLog();
+  updateChronos();
+  updateSummary();
+
+  var typeNames = { giris:'İş Girişi', cikis:'İş Çıkışı', 'mola-bas':'Mola Başlangıcı', 'mola-bit':'Moladan Dönüş' };
+  showToast('＋ ' + (typeNames[recType]||recType) + ' kaydı eklendi.');
 }
 
 function renderRecords() {
@@ -2023,6 +2166,7 @@ function saveEdit() {
   document.getElementById('edit-overlay').classList.remove('open');
   editingId = null;
 
+  checkAchievements('editRecord', { type: rec.type, date: rec.date });
   syncUI();
   renderTodayLog();
   renderBreakLog();
@@ -2188,6 +2332,7 @@ var IZIN_TURLERI = [
   'Tedavi İzni',
   'İdari İzin',
   'Ücretsiz İzin',
+  'Akademik İzin',
   'Etkinlik / Görevlendirme'
 ];
 
@@ -2281,6 +2426,7 @@ function saveTrackingEntry() {
   localStorage.setItem(key, JSON.stringify(data));
   document.getElementById('tracking-modal').classList.remove('open');
   loadTrackingData();
+  renderCalendar();
 }
 
 function deleteTrackingEntry(mode, idx) {
@@ -2290,6 +2436,7 @@ function deleteTrackingEntry(mode, idx) {
   data.splice(idx, 1);
   localStorage.setItem(key, JSON.stringify(data));
   loadTrackingData();
+  renderCalendar();
 }
 
 document.addEventListener('DOMContentLoaded', loadTrackingData);
@@ -2893,6 +3040,386 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 // (DOMContentLoaded bazen geç tetiklenir, direkt de çalıştır)
 updateScheduleButtonUI();
+updateAchievementBadge();
+
+// ── BAŞARIMLAR ────────────────────────────────────────────────────
+
+var ACHIEVEMENTS = [
+  // 🟢 Başlangıç
+  { id:'ilk_adim',      cat:'Başlangıç',  icon:'🏆', name:'İlk Adım',        desc:'İlk giriş kaydını oluştur.',              secret:false },
+  { id:'ise_basladim',  cat:'Başlangıç',  icon:'🏆', name:'İşe Başladım',    desc:'İlk tam mesaini tamamla.',                secret:false },
+  { id:'ilk_mola',      cat:'Başlangıç',  icon:'🏆', name:'İlk Mola',        desc:'İlk mola kaydını oluştur.',               secret:false },
+  { id:'mesai_takipci', cat:'Başlangıç',  icon:'🏆', name:'Mesai Takipçisi', desc:'Toplam 10 kayıt oluştur.',                secret:false },
+  { id:'duzen_sever',   cat:'Başlangıç',  icon:'🏆', name:'Düzen Sever',     desc:'İlk kayıt düzenlemeni yap.',              secret:false },
+  // 🔵 Kullanım Serileri
+  { id:'seri_5',   cat:'Kullanım Serileri', icon:'📅', name:'1 Haftalık Seri',  desc:'5 iş günü üst üste kayıt gir.',    secret:false },
+  { id:'seri_20',  cat:'Kullanım Serileri', icon:'📅', name:'1 Aylık Seri',     desc:'20 gün kayıt gir.',                secret:false },
+  { id:'seri_50',  cat:'Kullanım Serileri', icon:'📅', name:'Sadık Kullanıcı',  desc:'50 gün kayıt gir.',                secret:false },
+  { id:'seri_100', cat:'Kullanım Serileri', icon:'📅', name:'Demirbaş',         desc:'100 gün kayıt gir.',               secret:false },
+  { id:'seri_365', cat:'Kullanım Serileri', icon:'📅', name:'Efsane Çalışan',   desc:'365 gün kayıt gir.',               secret:false },
+  // 🟡 Çalışma Süresi
+  { id:'sure_12',   cat:'Çalışma Süresi', icon:'⏱️', name:'12 Saat',    desc:'Toplam 12 saat çalış.',    secret:false },
+  { id:'sure_65',   cat:'Çalışma Süresi', icon:'⏱️', name:'65 Saat',    desc:'Toplam 65 saat çalış.',    secret:false },
+  { id:'sure_130',  cat:'Çalışma Süresi', icon:'⏱️', name:'130 Saat',   desc:'Toplam 130 saat çalış.',   secret:false },
+  { id:'sure_500',  cat:'Çalışma Süresi', icon:'⏱️', name:'500 Saat',   desc:'Toplam 500 saat çalış.',   secret:false },
+  { id:'sure_1000', cat:'Çalışma Süresi', icon:'⏱️', name:'1000 Saat',  desc:'Toplam 1000 saat çalış.',  secret:false },
+  // 🟠 Fazla Mesai
+  { id:'fazla_ilk',    cat:'Fazla Mesai', icon:'🔥', name:'Mesaiye Kaldım', desc:'İlk fazla mesaini yap (standart çıkıştan sonra çalış).', secret:false },
+  { id:'gece_kusu',    cat:'Fazla Mesai', icon:'🔥', name:'Gece Kuşu',      desc:'22:00 sonrası çıkış yap.',          secret:false },
+  { id:'canavar_12',   cat:'Fazla Mesai', icon:'🔥', name:'Mesai Canavarı', desc:'Tek günde 12 saat çalış.',          secret:false },
+  { id:'durmak_yok',   cat:'Fazla Mesai', icon:'🔥', name:'Durmak Yok',     desc:'Tek günde 14 saat çalış.',          secret:false },
+  { id:'iskolik',      cat:'Fazla Mesai', icon:'🔥', name:'İşkolik',        desc:'Toplam 100 saat fazla mesai yap.',  secret:false },
+  // 🟣 Mola
+  { id:'mola_50',       cat:'Mola', icon:'☕', name:'Kahve Molası', desc:'50 mola ver.',                              secret:false },
+  { id:'mola_100',      cat:'Mola', icon:'☕', name:'Mola Ustası',  desc:'100 mola ver.',                             secret:false },
+  { id:'mola_500',      cat:'Mola', icon:'☕', name:'Çaycı Hüseyin',desc:'500 mola ver.',                            secret:false },
+  { id:'molasiz_gun',   cat:'Mola', icon:'☕', name:'Molasız Gün',  desc:'Hiç mola vermeden tam gün çalış.',          secret:false },
+  // 🔴 Düzenleme
+  { id:'duz_10',  cat:'Kayıt Düzenleme', icon:'✏️', name:'Düzeltme Ustası', desc:'10 kayıt düzenle.',              secret:false },
+  { id:'duz_zaman', cat:'Kayıt Düzenleme', icon:'✏️', name:'Zaman Yolcusu', desc:'Geçmiş güne ait kayıt düzenle.', secret:false },
+  { id:'duz_50',  cat:'Kayıt Düzenleme', icon:'✏️', name:'Arşivci',         desc:'50 kayıt düzenle.',              secret:false },
+  // ⚫ Gizli
+  { id:'hafta_sonu',    cat:'Gizli', icon:'🔒', name:'Hafta Sonu Savaşçısı', desc:'???', realDesc:'Cumartesi veya Pazar çalış.',          secret:true },
+  { id:'safak',         cat:'Gizli', icon:'🔒', name:'Şafak Operasyonu',     desc:'???', realDesc:"05:00'den önce giriş yap.",           secret:true },
+  { id:'son_adam',      cat:'Gizli', icon:'🔒', name:'Son Adam',             desc:'???', realDesc:"23:30'dan sonra çıkış yap.",          secret:true },
+  { id:'tam_isabet',    cat:'Gizli', icon:'🔒', name:'Tam İsabet',           desc:'???', realDesc:'Bir ay boyunca hiç kayıt düzeltme yapma.', secret:true },
+  { id:'mukemmel_ay',   cat:'Gizli', icon:'🔒', name:'Mükemmel Ay',          desc:'???', realDesc:'Bir ay boyunca hiç geç kalmama.',      secret:true },
+  { id:'devamlılık',    cat:'Gizli', icon:'🔒', name:'Devamlılık Rekoru',    desc:'???', realDesc:'30 gün üst üste kayıt gir.',           secret:true },
+  // 🟤 Komik (Gizli)
+  { id:'unuttum',      cat:'Gizli', icon:'🤦', name:'Unuttum',      desc:'???', realDesc:'Aynı gün giriş saatini sonradan düzenle.',     secret:true },
+  { id:'yine_unuttum', cat:'Gizli', realDesc:'Aynı gün giriş düzenlemesini 10 kez yap.', icon:'😅', name:'Yine Unuttum', desc:'???', secret:true },
+  { id:'zaman_bukucu', cat:'Gizli', realDesc:'Giriş ve çıkış saatini aynı gün düzenle.', icon:'🤯', name:'Zaman Bükücü', desc:'???', secret:true },
+  { id:'gece_baykusu', cat:'Gizli', realDesc:'Bir haftada 3 kez 22:00 sonrası çıkış yap.', icon:'🦉', name:'Gece Baykuşu', desc:'???', secret:true },
+  { id:'roket_mesai',  cat:'Gizli', icon:'🚀', name:'Roket Mesai',  desc:'???', realDesc:'Bir ayda 200 saat çalış.',                     secret:true },
+];
+
+var ACH_CATEGORY_ORDER = [
+  'Başlangıç','Kullanım Serileri','Çalışma Süresi',
+  'Fazla Mesai','Mola','Kayıt Düzenleme','Gizli'
+];
+
+function loadAchievements() {
+  try { return JSON.parse(localStorage.getItem('lufer_achievements') || '{}'); }
+  catch(e) { return {}; }
+}
+
+function saveAchievements(data) {
+  try { localStorage.setItem('lufer_achievements', JSON.stringify(data)); } catch(e) {}
+}
+
+function isScheduleLocked() {
+  var s = loadWorkSchedule();
+  return s && s.locked;
+}
+
+var _achToastQueue = [];
+var _achToastBusy  = false;
+
+function unlockAchievement(id) {
+  if (!isScheduleLocked()) return;
+  var data = loadAchievements();
+  if (data[id]) return; // Zaten kazanıldı
+  var def = ACHIEVEMENTS.find(function(a){ return a.id === id; });
+  if (!def) return;
+  data[id] = { unlockedAt: new Date().toISOString() };
+  saveAchievements(data);
+  _achToastQueue.push(def);
+  if (!_achToastBusy) processAchievementToastQueue();
+  // Badge güncelle
+  updateAchievementBadge();
+}
+
+function processAchievementToastQueue() {
+  if (!_achToastQueue.length) { _achToastBusy = false; return; }
+  _achToastBusy = true;
+  var def = _achToastQueue.shift();
+  var el = document.getElementById('ach-toast');
+  document.getElementById('ach-toast-icon').textContent = def.icon;
+  document.getElementById('ach-toast-name').textContent = def.name;
+  document.getElementById('ach-toast-desc').textContent = def.desc;
+  el.style.display = 'flex';
+  setTimeout(function() {
+    el.style.display = 'none';
+    setTimeout(processAchievementToastQueue, 400);
+  }, 4000);
+}
+
+function updateAchievementBadge() {
+  // "Yeni" badge — kazanılan ama modal hiç açılmamış olanlar
+  var data = loadAchievements();
+  var seen = localStorage.getItem('lufer_ach_seen_count');
+  var seenCount = seen ? parseInt(seen) : 0;
+  var total = Object.keys(data).length;
+  var badge = document.getElementById('ach-new-badge');
+  if (!badge) return;
+  if (total > seenCount) {
+    badge.textContent = total - seenCount;
+    badge.style.display = 'flex';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+function openAchievementsModal() {
+  var data = loadAchievements();
+  // Görüldü olarak işaretle
+  localStorage.setItem('lufer_ach_seen_count', Object.keys(data).length);
+  updateAchievementBadge();
+
+  var bodyEl   = document.getElementById('ach-list');
+  var noticeEl = document.getElementById('ach-locked-notice');
+  var subEl    = document.getElementById('ach-progress-sub');
+  var total    = ACHIEVEMENTS.length;
+  var unlocked = Object.keys(data).length;
+
+  if (!isScheduleLocked()) {
+    noticeEl.style.display = 'block';
+    bodyEl.innerHTML = '';
+    subEl.textContent = 'Mesai saatleri ayarlanmadan aktif olmaz.';
+  } else {
+    noticeEl.style.display = 'none';
+    subEl.textContent = unlocked + ' / ' + total + ' başarım kazanıldı';
+    renderAchievementList(data);
+  }
+
+  document.getElementById('ach-overlay').style.display = 'flex';
+}
+
+function closeAchievementsModal() {
+  document.getElementById('ach-overlay').style.display = 'none';
+}
+
+function renderAchievementList(data) {
+  var bodyEl = document.getElementById('ach-list');
+  var html = '';
+  var MONTHS_TR2 = ['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
+
+  ACH_CATEGORY_ORDER.forEach(function(cat) {
+    var items = ACHIEVEMENTS.filter(function(a){ return a.cat === cat; });
+    if (!items.length) return;
+    var unlockedInCat = items.filter(function(a){ return !!data[a.id]; }).length;
+    html += '<div class="ach-category-title">' + catEmoji(cat) + ' ' + cat +
+            ' <span style="font-weight:400;color:var(--muted);">(' + unlockedInCat + '/' + items.length + ')</span></div>';
+
+    items.forEach(function(a) {
+      var isUnlocked = !!data[a.id];
+      if (a.secret && !isUnlocked) {
+        // Gizli ve kilitli
+        html += '<div class="ach-hidden-item">' +
+          '<span style="font-size:1.4rem;width:36px;text-align:center;">🔒</span>' +
+          '<div><div style="font-size:.875rem;font-weight:600;">Gizli Başarım</div>' +
+          '<div style="font-size:.75rem;color:var(--muted);">Koşulları keşfetmen gerekiyor.</div></div>' +
+          '</div>';
+        return;
+      }
+      var dateStr = '';
+      if (isUnlocked && data[a.id].unlockedAt) {
+        var d = new Date(data[a.id].unlockedAt);
+        dateStr = d.getDate() + ' ' + MONTHS_TR2[d.getMonth()] + ' ' + d.getFullYear();
+      }
+      // Gizli başarım kazanıldıysa realDesc göster, kazanılmadıysa '???' göster
+      var displayDesc = (a.secret && !isUnlocked) ? '???' : (isUnlocked && a.realDesc ? a.realDesc : a.desc);
+      html += '<div class="ach-item">' +
+        '<span class="ach-icon' + (isUnlocked ? ' unlocked' : '') + '">' + a.icon + '</span>' +
+        '<div class="ach-info">' +
+          '<div class="ach-name' + (isUnlocked ? ' unlocked' : '') + '">' + a.name + '</div>' +
+          '<div class="ach-desc">' + displayDesc + '</div>' +
+          (isUnlocked ? '<div class="ach-date">✓ ' + dateStr + '</div>' : '') +
+        '</div>' +
+        '</div>';
+    });
+  });
+  bodyEl.innerHTML = html;
+}
+
+function catEmoji(cat) {
+  var map = {
+    'Başlangıç':'🟢','Kullanım Serileri':'🔵','Çalışma Süresi':'🟡',
+    'Fazla Mesai':'🟠','Mola':'🟣','Kayıt Düzenleme':'🔴','Gizli':'⚫','Komik':'🟤'
+  };
+  return map[cat] || '';
+}
+
+// ── BAŞARIM KONTROLCÜSÜ ────────────────────────────────────────
+function checkAchievements(trigger, meta) {
+  if (!isScheduleLocked()) return;
+  meta = meta || {};
+  var recs    = state.records.filter(function(r){ return r; });
+  var sched   = loadWorkSchedule();
+  var achData = loadAchievements();
+
+  // Yardımcılar
+  function toMin(timeStr) {
+    var p = (timeStr||'').split(':');
+    return parseInt(p[0]||0)*60 + parseInt(p[1]||0);
+  }
+  function totalWorkMs() {
+    var ms = 0, lastIn = null;
+    recs.slice().sort(function(a,b){return (a.ts||0)-(b.ts||0);}).forEach(function(r){
+      if (r.type==='giris') lastIn = r.ts;
+      if (r.type==='cikis' && lastIn) { ms += r.ts - lastIn; lastIn = null; }
+    });
+    return ms;
+  }
+  function uniqueWorkDays() {
+    var days = new Set();
+    recs.forEach(function(r){ if(r.type==='giris') days.add(r.date); });
+    return days.size;
+  }
+  function totalBreaks() {
+    return recs.filter(function(r){ return r.type==='mola-bas'; }).length;
+  }
+
+  // ── Başlangıç ──
+  if (trigger === 'clockIn') {
+    unlockAchievement('ilk_adim');
+  }
+  if (trigger === 'clockOut') {
+    unlockAchievement('ise_basladim');
+    // Gece kuşu / son adam
+    var exitTime = toMin(meta.time);
+    if (exitTime >= 22*60) unlockAchievement('gece_kusu');
+    if (exitTime >= 23*60+30) unlockAchievement('son_adam');
+    // Fazla mesai kontrolü
+    if (sched && sched.wdEnd) {
+      var stdEnd = toMin(sched.wdEnd);
+      if (exitTime > stdEnd) unlockAchievement('fazla_ilk');
+    }
+    // Tek günde 12/14 saat
+    var todayMs = 0, li2 = null;
+    var todayRecs = recs.filter(function(r){ return r.date === meta.date; })
+                        .sort(function(a,b){return (a.ts||0)-(b.ts||0);});
+    todayRecs.forEach(function(r){
+      if(r.type==='giris') li2=r.ts;
+      if(r.type==='cikis'&&li2){ todayMs+=r.ts-li2; li2=null; }
+    });
+    if (todayMs >= 12*3600000) unlockAchievement('canavar_12');
+    if (todayMs >= 14*3600000) unlockAchievement('durmak_yok');
+    // Molasız gün
+    var todayBreaks = todayRecs.filter(function(r){ return r.type==='mola-bas'; }).length;
+    if (todayMs > 0 && todayBreaks === 0) unlockAchievement('molasiz_gun');
+    // Toplam fazla mesai
+    if (sched && sched.wdEnd) {
+      var totalFazlaMs = 0;
+      var byDay = {};
+      recs.forEach(function(r){ if(!byDay[r.date]) byDay[r.date]=[]; byDay[r.date].push(r); });
+      Object.keys(byDay).forEach(function(day){
+        var dayR = byDay[day].sort(function(a,b){return (a.ts||0)-(b.ts||0);});
+        var lastGiris=null, lastCikis=null;
+        dayR.forEach(function(r){
+          if(r.type==='giris') lastGiris=r.ts;
+          if(r.type==='cikis') lastCikis=r.ts;
+        });
+        if (lastGiris && lastCikis) {
+          var stdEndMs = toMin(sched.wdEnd)*60000;
+          var dayStart = new Date(lastGiris);
+          dayStart.setHours(0,0,0,0);
+          var stdEndTs = dayStart.getTime() + stdEndMs;
+          if (lastCikis > stdEndTs) totalFazlaMs += lastCikis - stdEndTs;
+        }
+      });
+      if (totalFazlaMs >= 100*3600000) unlockAchievement('iskolik');
+    }
+    // Roket mesai
+    var monthKey = meta.date.slice(0,7);
+    var monthMs = 0, ml=null;
+    recs.filter(function(r){return r.date && r.date.startsWith(monthKey);})
+        .sort(function(a,b){return (a.ts||0)-(b.ts||0);})
+        .forEach(function(r){
+          if(r.type==='giris') ml=r.ts;
+          if(r.type==='cikis'&&ml){ monthMs+=r.ts-ml; ml=null; }
+        });
+    if (monthMs >= 200*3600000) unlockAchievement('roket_mesai');
+    // Gece baykuşu (bu haftada 3 kez 22:00+)
+    var weekStart = new Date(meta.date);
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+    var weekStr = weekStart.toISOString().slice(0,10);
+    var lateExits = recs.filter(function(r){
+      return r.type==='cikis' && r.date >= weekStr && toMin(r.time) >= 22*60;
+    }).length;
+    if (lateExits >= 3) unlockAchievement('gece_baykusu');
+    // Mükemmel ay
+    if (sched && sched.wdStart) {
+      var stdStart = toMin(sched.wdStart);
+      var monthEntries = recs.filter(function(r){
+        return r.type==='giris' && r.date && r.date.startsWith(monthKey);
+      });
+      var perfectMonth = monthEntries.length > 0 && monthEntries.every(function(r){
+        return toMin(r.time) <= stdStart;
+      });
+      if (perfectMonth && monthEntries.length >= 15) unlockAchievement('mukemmel_ay');
+    }
+  }
+  if (trigger === 'breakStart') {
+    unlockAchievement('ilk_mola');
+    var tc = totalBreaks();
+    if (tc >= 50)  unlockAchievement('mola_50');
+    if (tc >= 100) unlockAchievement('mola_100');
+    if (tc >= 500) unlockAchievement('mola_500');
+  }
+  if (trigger === 'addRecord') {
+    if (recs.length >= 10) unlockAchievement('mesai_takipci');
+    // Kayıt günü sayısı
+    var ud = uniqueWorkDays();
+    if (ud >= 5)   unlockAchievement('seri_5');
+    if (ud >= 20)  unlockAchievement('seri_20');
+    if (ud >= 50)  unlockAchievement('seri_50');
+    if (ud >= 100) unlockAchievement('seri_100');
+    if (ud >= 365) unlockAchievement('seri_365');
+    // Toplam çalışma
+    var twh = totalWorkMs() / 3600000;
+    if (twh >= 12)   unlockAchievement('sure_12');
+    if (twh >= 65)   unlockAchievement('sure_65');
+    if (twh >= 130)  unlockAchievement('sure_130');
+    if (twh >= 500)  unlockAchievement('sure_500');
+    if (twh >= 1000) unlockAchievement('sure_1000');
+    // Hafta sonu
+    if (meta.dow === 0 || meta.dow === 6) unlockAchievement('hafta_sonu');
+    // Şafak operasyonu
+    if (meta.type === 'giris') {
+      var h = parseInt((meta.time||'').split(':')[0]);
+      if (h < 5) unlockAchievement('safak');
+    }
+    // Devamlılık rekoru (30 üst üste)
+    var sortedDays = Array.from(new Set(
+      recs.filter(function(r){return r.type==='giris';}).map(function(r){return r.date;})
+    )).sort();
+    var streak = 1, maxStreak = 1;
+    for (var si = 1; si < sortedDays.length; si++) {
+      var prev = new Date(sortedDays[si-1]);
+      var curr = new Date(sortedDays[si]);
+      var diff = (curr - prev) / 86400000;
+      if (diff === 1) { streak++; maxStreak = Math.max(maxStreak, streak); }
+      else streak = 1;
+    }
+    if (maxStreak >= 30) unlockAchievement('devamlılık');
+  }
+  if (trigger === 'editRecord') {
+    unlockAchievement('duzen_sever');
+    var editCount = parseInt(localStorage.getItem('lufer_edit_count')||'0') + 1;
+    localStorage.setItem('lufer_edit_count', editCount);
+    if (editCount >= 10) unlockAchievement('duz_10');
+    if (editCount >= 50) unlockAchievement('duz_50');
+    // Zaman yolcusu — geçmiş güne düzenleme
+    if (meta.date && meta.date < dateKey()) unlockAchievement('duz_zaman');
+    // Unuttum — bugün giris saatini düzenledim
+    if (meta.type === 'giris' && meta.date === dateKey()) {
+      var forgetCount = parseInt(localStorage.getItem('lufer_forget_count')||'0') + 1;
+      localStorage.setItem('lufer_forget_count', forgetCount);
+      unlockAchievement('unuttum');
+      if (forgetCount >= 10) unlockAchievement('yine_unuttum');
+    }
+    // Zaman bükücü — bugün hem giris hem cikis düzenledim
+    if (meta.date === dateKey()) {
+      var editTypes = JSON.parse(localStorage.getItem('lufer_edit_types_today')||'{}');
+      editTypes[meta.type] = true;
+      localStorage.setItem('lufer_edit_types_today', JSON.stringify(editTypes));
+      if (editTypes['giris'] && editTypes['cikis']) unlockAchievement('zaman_bukucu');
+    }
+    // Tam isabet — bu ay hiç düzenleme yok (artık var, kontrol geç)
+    // (Bu başarım ayın sonunda değil, anlık takip zor — ay dönerinde kontrol)
+  }
+}
 
 // ── OTOMATİK YEDEK HATIRLATICI ───────────────────────────────────
 var AUTO_BACKUP_INTERVAL_DAYS = 3;
@@ -2979,6 +3506,11 @@ function confirmReset() {
     'lufer_work_schedule',
     'lufer_last_backup',
     'lufer_last_backup_remind',
+    'lufer_achievements',
+    'lufer_ach_seen_count',
+    'lufer_edit_count',
+    'lufer_forget_count',
+    'lufer_edit_types_today',
     'pwa_dismissed',
     'ios_hint_shown',
   ];
@@ -3115,6 +3647,210 @@ function importJSON(event) {
   font-family: inherit;
   letter-spacing: 0.03em;
 ">Designed by <strong style="color: #5b8db8;">Hasan İZGİ</strong></footer>
+
+<!-- Geçmişe Kayıt Ekleme Modalı -->
+<div id="add-record-overlay" onclick="closeAddRecordModal(event)" style="
+  display:none; position:fixed; inset:0; z-index:700;
+  background:rgba(0,0,0,.7); backdrop-filter:blur(6px);
+  align-items:center; justify-content:center; padding:1rem;
+">
+  <div id="add-record-modal" style="
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:18px; padding:0; width:100%; max-width:400px;
+    box-shadow:0 24px 60px rgba(0,0,0,.6);
+    animation:modal-in .22s cubic-bezier(.34,1.56,.64,1);
+  ">
+    <div style="padding:1.25rem 1.5rem; border-bottom:1px solid var(--border);">
+      <div style="font-weight:700; font-size:1rem;">＋ Kayıt Ekle</div>
+      <div style="font-size:.8rem; color:var(--muted); margin-top:3px;" id="add-record-date-label"></div>
+    </div>
+    <div style="padding:1.25rem 1.5rem;">
+      <!-- Tür seç -->
+      <div style="margin-bottom:1rem;">
+        <label style="display:block; font-size:.72rem; font-weight:700; text-transform:uppercase;
+                      letter-spacing:1.5px; color:var(--muted); margin-bottom:.5rem;">Kayıt Türü</label>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;" id="add-rec-type-btns">
+          <button type="button" class="add-type-btn active" data-type="giris"    onclick="selectAddType(this)">✅ İş Girişi</button>
+          <button type="button" class="add-type-btn"        data-type="cikis"    onclick="selectAddType(this)">🚪 İş Çıkışı</button>
+          <button type="button" class="add-type-btn"        data-type="mola-bas" onclick="selectAddType(this)">☕ Mola Başlangıç</button>
+          <button type="button" class="add-type-btn"        data-type="mola-bit" onclick="selectAddType(this)">🔙 Moladan Dönüş</button>
+        </div>
+      </div>
+      <!-- Saat -->
+      <div style="margin-bottom:1rem;">
+        <label style="display:block; font-size:.72rem; font-weight:700; text-transform:uppercase;
+                      letter-spacing:1.5px; color:var(--muted); margin-bottom:.5rem;">Saat</label>
+        <input type="time" id="add-rec-time" step="60" class="sched-input">
+      </div>
+      <!-- Mola adı/notu (sadece mola türleri için) -->
+      <div id="add-rec-mola-fields" style="display:none;">
+        <div style="margin-bottom:.75rem;">
+          <label style="display:block; font-size:.72rem; font-weight:700; text-transform:uppercase;
+                        letter-spacing:1.5px; color:var(--muted); margin-bottom:.5rem;">
+            Mola Adı <span style="font-weight:400; text-transform:none; letter-spacing:0; color:var(--muted); font-size:.7rem;">(isteğe bağlı)</span>
+          </label>
+          <input type="text" id="add-rec-label" placeholder="ör. Öğle molası…" class="sched-input">
+        </div>
+        <div style="margin-bottom:.75rem;">
+          <label style="display:block; font-size:.72rem; font-weight:700; text-transform:uppercase;
+                        letter-spacing:1.5px; color:var(--muted); margin-bottom:.5rem;">
+            Açıklama <span style="font-weight:400; text-transform:none; letter-spacing:0; color:var(--muted); font-size:.7rem;">(isteğe bağlı)</span>
+          </label>
+          <textarea id="add-rec-note" rows="2" placeholder="Not ekleyin…" class="sched-input" style="resize:vertical;"></textarea>
+        </div>
+      </div>
+      <!-- Hata -->
+      <div id="add-rec-error" style="
+        display:none; background:rgba(224,92,92,.1); border:1px solid var(--red);
+        border-radius:8px; padding:.65rem 1rem; margin-bottom:.75rem;
+        font-size:.82rem; color:var(--red);
+      "></div>
+      <!-- Butonlar -->
+      <div style="display:flex; gap:10px; justify-content:flex-end;">
+        <button class="btn btn-secondary" onclick="closeAddRecordModal()">İptal</button>
+        <button class="btn btn-primary"   onclick="saveAddRecord()">＋ Kaydet</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .add-type-btn {
+    padding: 9px 8px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--muted);
+    font-family: 'Inter', sans-serif;
+    font-size: .8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .15s;
+    text-align: center;
+  }
+  .add-type-btn.active {
+    background: var(--amber);
+    border-color: var(--amber);
+    color: #0B1929;
+  }
+  .add-type-btn:hover:not(.active) {
+    border-color: var(--amber);
+    color: var(--amber);
+  }
+</style>
+
+<!-- Başarımlar Modalı -->
+<div id="ach-overlay" style="
+  display:none; position:fixed; inset:0; z-index:700;
+  background:rgba(0,0,0,.8); backdrop-filter:blur(8px);
+  align-items:flex-start; justify-content:center; padding:1rem;
+  overflow-y:auto;
+">
+  <div style="
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:18px; width:100%; max-width:520px;
+    box-shadow:0 24px 60px rgba(0,0,0,.6);
+    animation:modal-in .22s cubic-bezier(.34,1.56,.64,1);
+    margin:auto;
+  ">
+    <!-- Başlık -->
+    <div style="
+      padding:1.5rem 1.75rem 1.25rem;
+      border-bottom:1px solid var(--border);
+      display:flex; align-items:center; justify-content:space-between;
+    ">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <span style="font-size:1.6rem;">🏆</span>
+        <div>
+          <div style="font-weight:700;font-size:1.05rem;">Başarımlar</div>
+          <div style="font-size:.8rem;color:var(--muted);margin-top:2px;" id="ach-progress-sub">
+            Yükleniyor…
+          </div>
+        </div>
+      </div>
+      <button onclick="closeAchievementsModal()" style="
+        background:var(--panel);border:1px solid var(--border);
+        border-radius:8px;padding:6px 12px;cursor:pointer;
+        color:var(--muted);font-size:.875rem;
+      ">✕ Kapat</button>
+    </div>
+    <!-- İçerik -->
+    <div id="ach-modal-body" style="padding:1.25rem 1.75rem 1.75rem;">
+      <!-- Kilitli mesai ayarı -->
+      <div id="ach-locked-notice" style="display:none;
+        background:rgba(245,166,35,.08); border:1px solid rgba(245,166,35,.3);
+        border-radius:10px; padding:1rem 1.25rem; text-align:center;
+        font-size:.875rem; line-height:1.6;
+      ">
+        <div style="font-size:1.5rem;margin-bottom:.5rem;">🔒</div>
+        Başarımlar aktif değil.<br>
+        <strong>Ayarlar → Mesai Saatlerini Ayarla</strong> bölümünden<br>
+        çalışma düzenini kaydettiğinde başarımlar aktif olur.
+      </div>
+      <!-- Başarım listesi -->
+      <div id="ach-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Başarım Toast (özel animasyonlu) -->
+<div id="ach-toast" style="
+  position:fixed; bottom:5rem; right:1.5rem; z-index:9000;
+  background:var(--surface); border:1px solid var(--amber);
+  border-radius:14px; padding:1rem 1.25rem;
+  display:none; align-items:center; gap:12px;
+  box-shadow:0 8px 32px rgba(0,0,0,.5);
+  max-width:300px; min-width:220px;
+  animation:ach-toast-in .4s cubic-bezier(.34,1.56,.64,1);
+">
+  <span id="ach-toast-icon" style="font-size:1.8rem;flex-shrink:0;"></span>
+  <div>
+    <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;
+                letter-spacing:1.5px;color:var(--amber);margin-bottom:3px;">
+      Başarım Kazanıldı!
+    </div>
+    <div id="ach-toast-name" style="font-weight:700;font-size:.9rem;"></div>
+    <div id="ach-toast-desc" style="font-size:.78rem;color:var(--muted);margin-top:2px;"></div>
+  </div>
+</div>
+
+<style>
+@keyframes ach-toast-in {
+  from { opacity:0; transform:translateX(40px) scale(.9); }
+  to   { opacity:1; transform:translateX(0) scale(1); }
+}
+.ach-category-title {
+  font-size:.72rem; font-weight:700; text-transform:uppercase;
+  letter-spacing:1.5px; color:var(--muted); margin:1.25rem 0 .6rem;
+  padding-bottom:.4rem; border-bottom:1px solid var(--border);
+}
+.ach-item {
+  display:flex; align-items:flex-start; gap:12px;
+  padding:.75rem 0; border-bottom:1px solid var(--border);
+}
+.ach-item:last-child { border-bottom:none; }
+.ach-icon {
+  font-size:1.5rem; flex-shrink:0; width:36px;
+  text-align:center; margin-top:2px;
+  filter:grayscale(1) opacity(.35);
+  transition:filter .3s;
+}
+.ach-icon.unlocked { filter:none; }
+.ach-info { flex:1; }
+.ach-name {
+  font-weight:600; font-size:.9rem; color:var(--muted);
+  transition:color .3s;
+}
+.ach-name.unlocked { color:var(--text); }
+.ach-desc { font-size:.78rem; color:var(--muted); margin-top:2px; line-height:1.45; }
+.ach-date { font-size:.7rem; color:var(--amber); margin-top:3px; }
+.ach-hidden-item {
+  display:flex; align-items:center; gap:12px;
+  padding:.75rem 0; border-bottom:1px solid var(--border);
+  opacity:.45;
+}
+.ach-hidden-item:last-child { border-bottom:none; }
+</style>
 
 <!-- Otomatik Yedek Hatırlatma Modalı -->
 <div id="autobackup-overlay" style="
