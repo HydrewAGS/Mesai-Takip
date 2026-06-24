@@ -1871,9 +1871,19 @@ function renderDayDetail(dateStr) {
   const emptyEl  = document.getElementById('cal-empty');
   const titleEl  = document.getElementById('cal-detail-title');
 
+  // Mesai kayıtları
   const recs = state.records
     .filter(r => r && r.date === dateStr)
     .sort((a, b) => (a.ts || 0) - (b.ts || 0));
+
+  // İzin ve ekstra mesai kayıtları
+  var izinRecs  = [];
+  var mesaiRecs = [];
+  try { izinRecs  = JSON.parse(localStorage.getItem('mesai_izin_records')  || '[]'); } catch(e) {}
+  try { mesaiRecs = JSON.parse(localStorage.getItem('mesai_extra_records') || '[]'); } catch(e) {}
+  const izinDay  = izinRecs.filter(r => r && r.date === dateStr);
+  const mesaiDay = mesaiRecs.filter(r => r && r.date === dateStr);
+  const hasAny   = recs.length || izinDay.length || mesaiDay.length;
 
   // Tarih başlığını formatla
   const parts = dateStr.split('-');
@@ -1881,7 +1891,7 @@ function renderDayDetail(dateStr) {
   const DAYS_TR = ['Pazar','Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi'];
   titleEl.textContent = DAYS_TR[d.getDay()] + ', ' + d.getDate() + ' ' + MONTHS_TR[d.getMonth()] + ' ' + d.getFullYear();
 
-  if (!recs.length) {
+  if (!hasAny) {
     detailEl.style.display = 'none';
     emptyEl.style.display  = 'block';
     return;
@@ -1889,7 +1899,7 @@ function renderDayDetail(dateStr) {
   detailEl.style.display = 'block';
   emptyEl.style.display  = 'none';
 
-  // Süre hesapla
+  // Süre hesapla (sadece mesai kayıtlarından)
   let workMs = 0, breakMs = 0;
   let lastIn = null, lastBreakStart = null;
   for (const r of recs) {
@@ -1902,30 +1912,97 @@ function renderDayDetail(dateStr) {
   document.getElementById('cal-s-break').textContent = toHM(breakMs);
   document.getElementById('cal-s-net').textContent   = toHM(Math.max(0, workMs - breakMs));
 
-  // Kayıt listesi
+  // ── Mesai kayıt listesi
   const listEl = document.getElementById('cal-record-list');
-  listEl.innerHTML = recs.map(r => {
-    const t = typeLabels[r.type];
-    if (!t) return '';
-    const isMola = r.type === 'mola-bas' || r.type === 'mola-bit';
-    const displayName = (isMola && r.label && r.label.trim()) ? `${t.icon} ${r.label}` : `${t.icon} ${t.label}`;
-    const noteHtml = (isMola && r.note && r.note.trim())
-      ? `<div style="font-size:.75rem;color:var(--muted);margin-top:3px;padding-left:18px;">${r.note}</div>` : '';
-    return `<div class="log-item" style="${noteHtml ? 'flex-direction:column;align-items:stretch;gap:4px;' : ''}">
-      <div style="display:flex;align-items:center;justify-content:space-between;width:100%;">
-        <div class="log-type">
-          <span class="log-badge ${t.cls}"></span>
-          <span class="log-type-text">${displayName}</span>
+  let listHtml = '';
+
+  if (recs.length) {
+    listHtml += recs.map(r => {
+      const t = typeLabels[r.type];
+      if (!t) return '';
+      const isMola = r.type === 'mola-bas' || r.type === 'mola-bit';
+      const displayName = (isMola && r.label && r.label.trim()) ? `${t.icon} ${r.label}` : `${t.icon} ${t.label}`;
+      const noteHtml = (isMola && r.note && r.note.trim())
+        ? `<div style="font-size:.75rem;color:var(--muted);margin-top:3px;padding-left:18px;">${r.note}</div>` : '';
+      return `<div class="log-item" style="${noteHtml ? 'flex-direction:column;align-items:stretch;gap:4px;' : ''}">
+        <div style="display:flex;align-items:center;justify-content:space-between;width:100%;">
+          <div class="log-type">
+            <span class="log-badge ${t.cls}"></span>
+            <span class="log-type-text">${displayName}</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="log-time">${r.time}</span>
+            <button class="edit-btn" onclick="openEditModal(${r.id})" title="Düzenle">✏️</button>
+            <button class="del-btn"  onclick="deleteRecord(${r.id})"  title="Sil">🗑</button>
+          </div>
         </div>
-        <div style="display:flex;align-items:center;gap:8px">
-          <span class="log-time">${r.time}</span>
-          <button class="edit-btn" onclick="openEditModal(${r.id})" title="Düzenle">✏️</button>
-          <button class="del-btn"  onclick="deleteRecord(${r.id})"  title="Sil">🗑</button>
+        ${noteHtml}
+      </div>`;
+    }).join('');
+  }
+
+  // ── İzin kayıtları
+  if (izinDay.length) {
+    listHtml += `<div style="font-size:.7rem;font-weight:700;text-transform:uppercase;
+      letter-spacing:1.5px;color:var(--green);margin:10px 0 4px;padding-top:8px;
+      border-top:1px solid var(--border);">🏖️ İzin Kayıtları</div>`;
+    listHtml += izinDay.map((r, idx) => {
+      const saatAraligi = (r.start && r.end) ? `${r.start} – ${r.end}` : (r.start || r.end || '');
+      const notHtml = r.note ? `<div style="font-size:.75rem;color:var(--muted);margin-top:2px;">${r.note}</div>` : '';
+      const globalIdx = izinRecs.findIndex(x => x === r || (x.date===r.date && x.type===r.type && x.start===r.start));
+      return `<div class="log-item" style="flex-direction:column;align-items:stretch;gap:3px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;width:100%;">
+          <div class="log-type">
+            <span style="width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;margin-right:6px;flex-shrink:0;"></span>
+            <span class="log-type-text">${r.type || 'İzin'}</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="log-time" style="color:var(--green);">${saatAraligi}</span>
+            <button class="del-btn" onclick="deleteTrackingEntryFromCal('izin', ${globalIdx})" title="Sil">🗑</button>
+          </div>
         </div>
-      </div>
-      ${noteHtml}
-    </div>`;
-  }).join('');
+        ${notHtml}
+      </div>`;
+    }).join('');
+  }
+
+  // ── Ekstra mesai kayıtları
+  if (mesaiDay.length) {
+    listHtml += `<div style="font-size:.7rem;font-weight:700;text-transform:uppercase;
+      letter-spacing:1.5px;color:var(--amber);margin:10px 0 4px;padding-top:8px;
+      border-top:1px solid var(--border);">⏱️ Ekstra Mesai Kayıtları</div>`;
+    listHtml += mesaiDay.map((r, idx) => {
+      const saatAraligi = (r.start && r.end) ? `${r.start} – ${r.end}` : (r.start || r.end || '');
+      const notHtml = r.note ? `<div style="font-size:.75rem;color:var(--muted);margin-top:2px;">${r.note}</div>` : '';
+      const globalIdx = mesaiRecs.findIndex(x => x === r || (x.date===r.date && x.type===r.type && x.start===r.start));
+      return `<div class="log-item" style="flex-direction:column;align-items:stretch;gap:3px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;width:100%;">
+          <div class="log-type">
+            <span style="width:8px;height:8px;border-radius:50%;background:var(--amber);display:inline-block;margin-right:6px;flex-shrink:0;"></span>
+            <span class="log-type-text">${r.type || 'Ekstra Mesai'}</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="log-time" style="color:var(--amber);">${saatAraligi}</span>
+            <button class="del-btn" onclick="deleteTrackingEntryFromCal('mesai', ${globalIdx})" title="Sil">🗑</button>
+          </div>
+        </div>
+        ${notHtml}
+      </div>`;
+    }).join('');
+  }
+
+  listEl.innerHTML = listHtml;
+}
+
+function deleteTrackingEntryFromCal(mode, idx) {
+  if (!confirm('Bu kayıt silinsin mi?')) return;
+  var key  = (mode === 'izin') ? 'mesai_izin_records' : 'mesai_extra_records';
+  var data = JSON.parse(localStorage.getItem(key) || '[]');
+  data.splice(idx, 1);
+  localStorage.setItem(key, JSON.stringify(data));
+  loadTrackingData();
+  renderCalendar();
+  if (calSelectedDate) renderDayDetail(calSelectedDate);
 }
 
 // ── GEÇMİŞE KAYIT EKLEME ─────────────────────────────────────
