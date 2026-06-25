@@ -139,6 +139,7 @@
     position: relative;
     transition: color .2s;
     white-space: nowrap;
+    flex-shrink: 0;
   }
   .tab-btn::after {
     content: '';
@@ -576,15 +577,24 @@
   .modal-warning.show { display: block; }
 
   .modal-actions { display: flex; gap: 10px; }
-  .modal-actions .btn { flex: 1; padding: 11px; font-size: .875rem; }
 
   @media (max-width: 600px) {
     main { padding: 1rem; }
     .summary-grid { grid-template-columns: 1fr 1fr; }
     .chrono-time { font-size: 2.8rem; }
     header { padding: 0 1rem; }
-    nav { padding: 0 1rem; overflow-x: auto; }
-    .tab-btn { padding: 12px 14px; font-size: .8rem; }
+    nav {
+      padding: 0;
+      overflow: visible;
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 10px 4px;
+      font-size: .72rem;
+      white-space: normal;
+      text-align: center;
+      line-height: 1.2;
+    }
   }
 
   /* ── TAKİP SEKMESİ ── */
@@ -676,6 +686,13 @@
     padding: 1rem 1.25rem;
     border-top: 1px solid var(--border);
     display: flex; gap: 8px; justify-content: flex-end;
+  }
+  .modal-footer .btn,
+  .modal-actions .btn {
+    flex: 1;
+    min-width: 0;
+    padding: 11px;
+    font-size: .875rem;
   }
   .form-group { display: flex; flex-direction: column; gap: 5px; }
   .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -1003,7 +1020,7 @@
         </div>
 
         <div class="btn-group">
-          <button class="btn" id="btn-gorev-start" onclick="gorevStart()" style="background:var(--green);color:#000;opacity:.9;font-size:.82rem;">
+          <button class="btn btn-success" id="btn-gorev-start" onclick="gorevStart()" style="font-size:.82rem;">
             🚗 Göreve Çık
           </button>
           <button class="btn btn-secondary" id="btn-gorev-end" onclick="gorevEnd()" disabled style="font-size:.82rem;">
@@ -1209,7 +1226,7 @@
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary" onclick="closeTrackingModalDirect()">İptal</button>
-        <button class="btn btn-primary" onclick="saveTrackingEntry()">Kaydet</button>
+        <button class="btn btn-primary" id="tracking-save-btn" onclick="saveTrackingEntry()">Kaydet</button>
       </div>
     </div>
   </div>
@@ -1969,10 +1986,15 @@ function renderDayDetail(dateStr) {
   const emptyEl  = document.getElementById('cal-empty');
   const titleEl  = document.getElementById('cal-detail-title');
 
-  // Mesai kayıtları
+  // Mesai kayıtları — giris en üstte, cikis en altta, arada kronolojik sıra
   const recs = state.records
     .filter(r => r && r.date === dateStr)
-    .sort((a, b) => (a.ts || 0) - (b.ts || 0));
+    .sort((a, b) => {
+      const order = t => t === 'giris' ? -1 : t === 'cikis' ? 1 : 0;
+      const oa = order(a.type), ob = order(b.type);
+      if (oa !== ob) return oa - ob;
+      return (a.ts || 0) - (b.ts || 0);
+    });
 
   // İzin ve ekstra mesai kayıtları
   var izinRecs  = [];
@@ -2595,14 +2617,20 @@ function renderTrackingList(containerId, data, mode) {
     html += '<div class="tracking-item-meta">' + metaStr + '</div>';
     html += noteHtml;
     html += '</div>';
+    html += '<div style="display:flex;gap:6px;flex-shrink:0;">';
+    html += '<button class="edit-btn" onclick="editTrackingEntry(\'' + mode + '\',' + originalIdx + ')" title="Düzenle">✏️</button>';
     html += '<button class="tracking-item-del" onclick="deleteTrackingEntry(\'' + mode + '\',' + originalIdx + ')" title="Sil">🗑️</button>';
+    html += '</div>';
     html += '</div>';
   }
   el.innerHTML = html;
 }
 
+var trackingEditIdx = -1;
+
 function openTrackingModal(mode) {
   trackingModalMode = mode;
+  trackingEditIdx   = -1;
   var modal  = document.getElementById('tracking-modal');
   var title  = document.getElementById('modal-title');
   var select = document.getElementById('modal-type');
@@ -2618,6 +2646,36 @@ function openTrackingModal(mode) {
   document.getElementById('modal-start').value = '';
   document.getElementById('modal-end').value   = '';
   document.getElementById('modal-note').value  = '';
+  document.getElementById('tracking-save-btn').textContent = 'Kaydet';
+  modal.classList.add('open');
+}
+
+function editTrackingEntry(mode, idx) {
+  var key  = (mode === 'izin') ? 'mesai_izin_records' : 'mesai_extra_records';
+  var data = JSON.parse(localStorage.getItem(key) || '[]');
+  var item = data[idx];
+  if (!item) return;
+
+  trackingModalMode = mode;
+  trackingEditIdx   = idx;
+
+  var modal  = document.getElementById('tracking-modal');
+  var title  = document.getElementById('modal-title');
+  var select = document.getElementById('modal-type');
+  title.textContent = (mode === 'izin') ? '🏖️ İzin Kaydı Düzenle' : '⏱️ Ekstra Mesai Kaydı Düzenle';
+
+  var types = (mode === 'izin') ? IZIN_TURLERI : MESAI_TURLERI;
+  var opts = '';
+  for (var i = 0; i < types.length; i++) {
+    opts += '<option value="' + types[i] + '"' + (types[i] === item.type ? ' selected' : '') + '>' + types[i] + '</option>';
+  }
+  select.innerHTML = opts;
+
+  document.getElementById('modal-date').value  = item.date  || '';
+  document.getElementById('modal-start').value = item.start || '';
+  document.getElementById('modal-end').value   = item.end   || '';
+  document.getElementById('modal-note').value  = item.note  || '';
+  document.getElementById('tracking-save-btn').textContent = '💾 Güncelle';
   modal.classList.add('open');
 }
 
@@ -2640,9 +2698,14 @@ function saveTrackingEntry() {
   var entry = { type: type, date: date, start: start, end: end, note: note };
   var key   = (trackingModalMode === 'izin') ? 'mesai_izin_records' : 'mesai_extra_records';
   var data  = JSON.parse(localStorage.getItem(key) || '[]');
-  data.push(entry);
+  if (trackingEditIdx >= 0) {
+    data[trackingEditIdx] = entry;        // güncelle
+  } else {
+    data.push(entry);                     // yeni ekle
+  }
   localStorage.setItem(key, JSON.stringify(data));
   document.getElementById('tracking-modal').classList.remove('open');
+  trackingEditIdx = -1;
   loadTrackingData();
   renderCalendar();
 }
@@ -2804,12 +2867,18 @@ function exportAllExcel() {
         var dk = Math.round((bitRec.ts - basRec.ts) / 60000);
         sureDk = Math.floor(dk/60) + 's ' + (dk%60) + 'dk';
       }
+      var molaAd = (basRec.label && basRec.label.trim()) ? basRec.label
+                 : (bitRec && bitRec.label && bitRec.label.trim() ? bitRec.label : '');
+      var molaAciklama = (basRec.note && basRec.note.trim()) ? basRec.note
+                       : (bitRec && bitRec.note && bitRec.note.trim() ? bitRec.note : '');
       hareketRows.push([
         d2,
         'Mola',
         basRec.time || '',
         bitRec ? (bitRec.time || '') : 'Bitmedi',
-        sureDk
+        sureDk,
+        molaAd,
+        molaAciklama
       ]);
     }
     // Görev kayıtları
@@ -2823,23 +2892,98 @@ function exportAllExcel() {
         var gDk = Math.round((gBitRec.ts - gBasRec.ts) / 60000);
         gSureDk = Math.floor(gDk/60) + 's ' + (gDk%60) + 'dk';
       }
+      var gorevAd = (gBasRec.label && gBasRec.label.trim()) ? gBasRec.label
+                  : (gBitRec && gBitRec.label && gBitRec.label.trim() ? gBitRec.label : '');
+      var gorevAciklama = (gBasRec.note && gBasRec.note.trim()) ? gBasRec.note
+                        : (gBitRec && gBitRec.note && gBitRec.note.trim() ? gBitRec.note : '');
       hareketRows.push([
         d2,
         'Görev',
         gBasRec.time || '',
         gBitRec ? (gBitRec.time || '') : 'Bitmedi',
-        gSureDk
+        gSureDk,
+        gorevAd,
+        gorevAciklama
       ]);
     }
   }
   // Tarihe göre sırala
   hareketRows.sort(function(a,b){ return b[0].localeCompare(a[0]); });
-  var hareketHeaders = ['Tarih', 'Tür', 'Başlangıç', 'Bitiş', 'Süre'];
-  var wsHareket = XLSX.utils.aoa_to_sheet([hareketHeaders].concat(hareketRows));
-  wsHareket['!cols'] = [{wch:14},{wch:12},{wch:14},{wch:14},{wch:12}];
+  var hareketHeaders = ['Tarih', 'Tür', 'Başlangıç', 'Bitiş', 'Süre', 'Ad', 'Açıklama'];
+
+  // Tarihler arasına ayraç satır ekle
+  var hareketRowsWithSep = [];
+  var prevDate2 = null;
+  for (var si = 0; si < hareketRows.length; si++) {
+    var curDate2 = hareketRows[si][0];
+    if (prevDate2 !== null && curDate2 !== prevDate2) {
+      // Boş ayraç satırı — özel işaretçi ile
+      hareketRowsWithSep.push(['__SEP__', '', '', '', '', '', '']);
+    }
+    hareketRowsWithSep.push(hareketRows[si]);
+    prevDate2 = curDate2;
+  }
+
+  var wsHareket = XLSX.utils.aoa_to_sheet([hareketHeaders].concat(hareketRowsWithSep));
+  wsHareket['!cols'] = [{wch:14},{wch:12},{wch:14},{wch:14},{wch:12},{wch:22},{wch:36}];
   wsHareket['!rows'] = [{hpt:20}];
-  for (var j = 1; j <= hareketRows.length; j++) { wsHareket['!rows'].push({hpt:18}); }
-  applyStyles(wsHareket, hareketHeaders, hareketRows);
+
+  // Başlık stili
+  for (var hc = 0; hc < hareketHeaders.length; hc++) {
+    var hAddr = XLSX.utils.encode_cell({r:0, c:hc});
+    if (!wsHareket[hAddr]) continue;
+    wsHareket[hAddr].s = {
+      font:      { bold: true, color: { rgb: 'FFFFFFFF' }, name: 'Arial', sz: 10 },
+      fill:      { fgColor: { rgb: 'FF1A3A5C' }, patternType: 'solid' },
+      alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+      border:    { bottom: { style: 'thin', color: { rgb: CLR_BORDER } } }
+    };
+  }
+
+  // Veri satırları + ayraç satırları
+  var dataRowIdx = 0;
+  for (var hr = 0; hr < hareketRowsWithSep.length; hr++) {
+    var isSep = (hareketRowsWithSep[hr][0] === '__SEP__');
+    var excelRow = hr + 1; // +1 for header
+
+    if (isSep) {
+      // Ayraç: koyu farklı renk, tam genişlik
+      wsHareket['!rows'].push({hpt: 8});
+      // Hücreleri boşalt ve renklendir
+      for (var sc = 0; sc < hareketHeaders.length; sc++) {
+        var sAddr = XLSX.utils.encode_cell({r: excelRow, c: sc});
+        wsHareket[sAddr] = { v: '', t: 's' };
+        wsHareket[sAddr].s = {
+          fill:      { fgColor: { rgb: 'FF071420' }, patternType: 'solid' },
+          border: {
+            top:    { style: 'medium', color: { rgb: 'FF1E3A54' } },
+            bottom: { style: 'medium', color: { rgb: 'FF1E3A54' } }
+          }
+        };
+      }
+      // __SEP__ hücresindeki metni temizle
+      var sepCell = XLSX.utils.encode_cell({r: excelRow, c: 0});
+      wsHareket[sepCell].v = '';
+    } else {
+      var fill2 = (dataRowIdx % 2 === 0) ? CLR_ROW_EVEN : CLR_ROW_ODD;
+      wsHareket['!rows'].push({hpt: 18});
+      for (var dc = 0; dc < hareketHeaders.length; dc++) {
+        var dAddr = XLSX.utils.encode_cell({r: excelRow, c: dc});
+        if (!wsHareket[dAddr]) wsHareket[dAddr] = { v: '', t: 's' };
+        wsHareket[dAddr].s = {
+          font:      { name: 'Arial', sz: 10, color: { rgb: 'FFD0E8FF' } },
+          fill:      { fgColor: { rgb: fill2 }, patternType: 'solid' },
+          alignment: { vertical: 'center' },
+          border: {
+            top:    { style: 'hair', color: { rgb: CLR_BORDER } },
+            bottom: { style: 'hair', color: { rgb: CLR_BORDER } }
+          }
+        };
+      }
+      dataRowIdx++;
+    }
+  }
+
   XLSX.utils.book_append_sheet(wb, wsHareket, 'Hareket Detayları');
 
   // ─── SAYFA 3: İZİN KAYITLARI ───
@@ -3954,9 +4098,9 @@ function importJSON(event) {
         font-size:.82rem; color:var(--red);
       "></div>
       <!-- Butonlar -->
-      <div style="display:flex; gap:10px; justify-content:flex-end;">
-        <button class="btn btn-secondary" onclick="closeAddRecordModal()">İptal</button>
-        <button class="btn btn-primary"   onclick="saveAddRecord()">＋ Kaydet</button>
+      <div style="display:flex; gap:10px;">
+        <button class="btn btn-secondary" style="flex:1;min-width:0;" onclick="closeAddRecordModal()">İptal</button>
+        <button class="btn btn-primary"   style="flex:1;min-width:0;" onclick="saveAddRecord()">＋ Kaydet</button>
       </div>
     </div>
   </div>
