@@ -167,6 +167,10 @@
     padding: 2.5rem 2rem;
     text-align: center;
     margin-bottom: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
   }
   .chrono-label {
     font-size: .75rem;
@@ -231,7 +235,7 @@
     min-width: 160px;
     justify-content: center;
   }
-  .btn:hover { transform: translateY(-1px); filter: brightness(1.1); }
+  .btn:hover { filter: brightness(1.1); }
   .btn:active { transform: translateY(0); filter: brightness(.95); }
   .btn:disabled { opacity: .35; pointer-events: none; }
 
@@ -1019,7 +1023,7 @@
           <span id="gorev-status-text">Görevde Değilsiniz</span>
         </div>
 
-        <div class="btn-group">
+        <div class="btn-group" style="min-height:46px;">
           <button class="btn btn-success" id="btn-gorev-start" onclick="gorevStart()" style="font-size:.82rem;">
             🚗 Göreve Çık
           </button>
@@ -1038,7 +1042,7 @@
           <span id="break-status-text">Molada Değilsiniz</span>
         </div>
 
-        <div class="btn-group">
+        <div class="btn-group" style="min-height:46px;">
           <button class="btn btn-success" id="btn-break-start" onclick="breakStart()" style="font-size:.82rem;">
             ☕ Molaya Çık
           </button>
@@ -1594,14 +1598,14 @@ function updateChronos() {
   }
 
   if (state.isOnBreak && state.breakStart) {
-    const bElapsed = past.pastBreakMs + (Date.now() - state.breakStart);
+    const bElapsed = Date.now() - state.breakStart;
     bEl.textContent = toHMS(bElapsed);
     bEl.className = 'chrono-time break';
   }
 
   if (gEl) {
     if (state.isOnGorev && state.gorevStart) {
-      const gElapsed = past.pastGorevMs + (Date.now() - state.gorevStart);
+      const gElapsed = Date.now() - state.gorevStart;
       gEl.textContent = toHMS(gElapsed);
       gEl.className = 'chrono-time working';
     }
