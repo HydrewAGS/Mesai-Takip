@@ -2903,6 +2903,15 @@ document.addEventListener('DOMContentLoaded', loadTrackingData);
 // ── AYARLAR PANELİ ──
 function toggleSettings(e) {
   e.stopPropagation();
+
+  // "Ne Dürtüyon Gardaş!" başarımı — başka yere tıklamadan ayarlar butonuna 10 kez arka arkaya
+  if (!window._achBtnClickCount) window._achBtnClickCount = 0;
+  window._achBtnClickCount++;
+  if (window._achBtnClickCount >= 10) {
+    unlockAchievement('ne_durtüyon');
+    window._achBtnClickCount = 0;
+  }
+
   var panel = document.getElementById('settings-panel');
   var btn   = document.getElementById('settings-btn');
   if (panel.style.display === 'none' || panel.style.display === '') {
@@ -3625,7 +3634,7 @@ var ACHIEVEMENTS = [
   { id:'duz_zaman', cat:'Kayıt Düzenleme', icon:'✏️', name:'Zaman Yolcusu', desc:'Geçmiş güne ait kayıt düzenle.', secret:false },
   { id:'duz_50',  cat:'Kayıt Düzenleme', icon:'✏️', name:'Arşivci',         desc:'50 kayıt düzenle.',              secret:false },
   // ⚫ Gizli
-  { id:'hafta_sonu',    cat:'Gizli', icon:'🔒', name:'Hafta Sonu Savaşçısı', desc:'???', realDesc:'Cumartesi veya Pazar çalış.',          secret:true },
+  { id:'hafta_sonu',    cat:'Gizli', icon:'🔒', name:'Hafta Sonu Savaşçısı', desc:'???', realDesc:'Pazar günü çalış.',          secret:true },
   { id:'safak',         cat:'Gizli', icon:'🔒', name:'Şafak Operasyonu',     desc:'???', realDesc:"05:00'den önce giriş yap.",           secret:true },
   { id:'son_adam',      cat:'Gizli', icon:'🔒', name:'Son Adam',             desc:'???', realDesc:"23:30'dan sonra çıkış yap.",          secret:true },
   { id:'tam_isabet',    cat:'Gizli', icon:'🔒', name:'Tam İsabet',           desc:'???', realDesc:'Bir ay boyunca hiç kayıt düzeltme yapma.', secret:true },
@@ -3643,6 +3652,7 @@ var ACHIEVEMENTS = [
   { id:'gotham', cat:'Gizli', icon:'🔒', name:"Gotham'ın Sana İhtiyacı Var!", desc:'???', realDesc:'Gece 00:00 ile 04:00 arasında çıkış yap.', secret:true },
   { id:'esnaf_isi', cat:'Gizli', icon:'🔒', name:'Ne Bir Eksik Ne Bir Fazla. Esnaf İşi Mesai...', desc:'???', realDesc:'Tam 18:00:01 ile 18:00:59 arasında çıkış yap.', secret:true },
   { id:'harita_yok', cat:'Gizli', icon:'🔒', name:'Dünyanın Sonuna Geldik Kaptan, Buradan İlerisi Haritalarda Yok', desc:'???', realDesc:'Takvimde hiç kaydı olmayan bir günde 10 saniye kal.', secret:true },
+  { id:'ne_durtüyon', cat:'Gizli', icon:'🔒', name:'Ne Dürtüyon Gardaş!', desc:'???', realDesc:'Ayarlar butonuna 10 kez üst üste tıkla.', secret:true },
 ];
 
 var ACH_CATEGORY_ORDER = [
@@ -3947,7 +3957,7 @@ function checkAchievements(trigger, meta) {
     if (twh >= 500)  unlockAchievement('sure_500');
     if (twh >= 1000) unlockAchievement('sure_1000');
     // Hafta sonu
-    if (meta.dow === 0 || meta.dow === 6) unlockAchievement('hafta_sonu');
+    if (meta.dow === 0) unlockAchievement('hafta_sonu');
     // Şafak operasyonu
     if (meta.type === 'giris') {
       var h = parseInt((meta.time||'').split(':')[0]);
@@ -4526,6 +4536,19 @@ function importJSON(event) {
     </div>
   </div>
 </div>
+
+
+<script>
+// "Ne Dürtüyon Gardaş!" — ayarlar butonu dışında bir yere tıklanınca sayacı sıfırla
+document.addEventListener('click', function(e) {
+  var btn = document.getElementById('settings-btn');
+  var panel = document.getElementById('settings-panel');
+  // Ayarlar butonu veya paneli dışında bir yere tıklanınca sıfırla
+  if (btn && !btn.contains(e.target) && !(panel && panel.contains(e.target))) {
+    window._achBtnClickCount = 0;
+  }
+}, true);
+</script>
 
 </body>
 </html>
