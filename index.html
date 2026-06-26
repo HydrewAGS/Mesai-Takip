@@ -220,20 +220,25 @@
   }
 
   /* ── BUTTONS ── */
-  .btn-group { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .btn-group { display: flex; gap: 8px; justify-content: center; flex-wrap: nowrap; width: 100%; }
 
   .btn {
-    display: inline-flex; align-items: center; gap: 8px;
-    padding: 13px 28px;
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 11px 14px;
     border-radius: 10px;
     border: none;
     font-family: 'Inter', sans-serif;
-    font-size: .9rem;
+    font-size: .85rem;
     font-weight: 600;
     cursor: pointer;
     transition: all .15s;
-    min-width: 160px;
+    min-width: 0;
+    flex: 1;
+    white-space: normal;
+    word-break: keep-all;
+    text-align: center;
     justify-content: center;
+    line-height: 1.3;
   }
   .btn:hover { filter: brightness(1.1); }
   .btn:active { transform: translateY(0); filter: brightness(.95); }
@@ -978,7 +983,7 @@
     </div>
 
     <div class="chrono-card">
-      <div class="chrono-label">Geçen Süre</div>
+      <div class="chrono-label" id="work-chrono-label">Geçen Süre</div>
       <div class="chrono-time idle" id="work-chrono">00:00:00</div>
 
       <div class="status-badge" id="work-status-badge">
@@ -987,10 +992,10 @@
       </div>
 
       <div class="btn-group">
-        <button class="btn btn-primary" id="btn-clock-in"  onclick="clockIn()">
+        <button class="btn btn-primary" id="btn-clock-in"  onclick="clockIn()" style="font-size:.9rem;padding:13px 20px;">
           ✅ İşe Giriş
         </button>
-        <button class="btn btn-danger" id="btn-clock-out" onclick="clockOut()" disabled>
+        <button class="btn btn-danger" id="btn-clock-out" onclick="clockOut()" disabled style="font-size:.9rem;padding:13px 20px;">
           🚪 İşten Çıkış
         </button>
       </div>
@@ -1023,11 +1028,11 @@
           <span id="gorev-status-text">Görevde Değilsiniz</span>
         </div>
 
-        <div class="btn-group" style="min-height:46px;">
-          <button class="btn btn-success" id="btn-gorev-start" onclick="gorevStart()" style="font-size:.82rem;">
+        <div class="btn-group" style="min-height:52px;align-items:stretch;flex-direction:column;">
+          <button class="btn btn-success" id="btn-gorev-start" onclick="gorevStart()" style="font-size:.82rem;padding:10px 8px;">
             🚗 Göreve Çık
           </button>
-          <button class="btn btn-secondary" id="btn-gorev-end" onclick="gorevEnd()" disabled style="font-size:.82rem;">
+          <button class="btn btn-secondary" id="btn-gorev-end" onclick="gorevEnd()" disabled style="font-size:.82rem;padding:10px 8px;">
             🏠 Görevden Dön
           </button>
         </div>
@@ -1042,11 +1047,11 @@
           <span id="break-status-text">Molada Değilsiniz</span>
         </div>
 
-        <div class="btn-group" style="min-height:46px;">
-          <button class="btn btn-success" id="btn-break-start" onclick="breakStart()" style="font-size:.82rem;">
+        <div class="btn-group" style="min-height:52px;align-items:stretch;flex-direction:column;">
+          <button class="btn btn-success" id="btn-break-start" onclick="breakStart()" style="font-size:.82rem;padding:10px 8px;">
             ☕ Molaya Çık
           </button>
-          <button class="btn btn-secondary" id="btn-break-end" onclick="breakEnd()" disabled style="font-size:.82rem;">
+          <button class="btn btn-secondary" id="btn-break-end" onclick="breakEnd()" disabled style="font-size:.82rem;padding:10px 8px;">
             🔙 Moladan Dön
           </button>
         </div>
@@ -1511,6 +1516,18 @@ function loadState() {
       records,
     };
   }
+  // Tarih değişti ama aktif vardiya varsa (gece yarısı geçildi) state'i koru
+  if (saved && saved.isWorking && saved.workStart) {
+    return {
+      isWorking:  true,
+      isOnBreak:  !!saved.isOnBreak,
+      isOnGorev:  !!saved.isOnGorev,
+      workStart:  saved.workStart,
+      breakStart: saved.breakStart || null,
+      gorevStart: saved.gorevStart || null,
+      records,
+    };
+  }
   return { isWorking: false, isOnBreak: false, isOnGorev: false, workStart: null, breakStart: null, gorevStart: null, records };
 }
 
@@ -1561,8 +1578,17 @@ function todayRecords() {
   return state.records.filter(r => r && r.date === today);
 }
 
+// Aktif vardiya başlangıcından itibaren tüm kayıtları döner (gece yarısı geçilse bile)
+function sessionRecords() {
+  if (!state.workStart) return todayRecords();
+  // workStart'tan önce girilmiş kayıtları da al (aynı vardiya)
+  return state.records.filter(r => r && r.ts >= state.workStart).sort((a,b) => (a.ts||0)-(b.ts||0));
+}
+
 function getTodayAccruals() {
-  const recs = todayRecords().sort((a, b) => (a.ts || 0) - (b.ts || 0));
+  // Aktif vardiya varsa session bazlı, yoksa bugün bazlı hesapla
+  const recs = (state.workStart ? sessionRecords() : todayRecords())
+    .sort((a, b) => (a.ts || 0) - (b.ts || 0));
   let pastWorkMs = 0, pastBreakMs = 0, pastGorevMs = 0;
   let lastIn = null, lastBreakStart = null, lastGorevStart = null;
 
@@ -1595,6 +1621,15 @@ function updateChronos() {
     const elapsed = past.pastWorkMs + (Date.now() - state.workStart);
     wEl.textContent = toHMS(elapsed);
     wEl.className = 'chrono-time' + (state.isOnBreak ? '' : ' working');
+    // Gece yarısı geçildiyse etikete küçük not ekle
+    const labelEl = document.getElementById('work-chrono-label');
+    if (labelEl) {
+      const startDate = dateKey(new Date(state.workStart));
+      const isOvernight = startDate !== dateKey();
+      labelEl.innerHTML = isOvernight
+        ? "Geçen Süre <span style='font-size:.65rem;color:var(--amber);opacity:.8;'>(" + startDate.slice(5).replace('-','/') + "'den beri)</span>"
+        : "Geçen Süre";
+    }
   }
 
   if (state.isOnBreak && state.breakStart) {
@@ -1727,6 +1762,16 @@ function clockIn() {
   if (state.isWorking) return;
   state.isWorking = true;
   state.workStart = Date.now();
+  // "Ağlara Takılmaktan Son Saniyede Yırttın" başarımı — 08:29:53–08:29:58 aralığında giriş
+  var _nowSS = new Date();
+  var _hSS = _nowSS.getHours(), _mSS = _nowSS.getMinutes(), _sSS = _nowSS.getSeconds();
+  if (_hSS === 8 && _mSS === 29 && _sSS >= 53 && _sSS <= 58) {
+    unlockAchievement('son_saniye');
+  }
+  localStorage.setItem('lufer_last_clockin_ts', Date.now());
+  // "Deve Susuz" başarımı — girişte tüm değişkenleri sıfırla
+  localStorage.removeItem('lufer_deve_ilk_mola_bitti');
+  localStorage.removeItem('lufer_deve_bitis_ts');
   addRecord('giris');
   var nowD = new Date();
   checkAchievements('clockIn', {});
@@ -1738,6 +1783,28 @@ function clockIn() {
 
 function clockOut() {
   if (!state.isWorking) return;
+  // "Marş Basmıyor Herhalde Kaptan, Jikleyi Çek" başarımı kontrolü
+  var lastClockinTs = parseInt(localStorage.getItem('lufer_last_clockin_ts') || '0');
+  if (lastClockinTs && (Date.now() - lastClockinTs) <= 3000) {
+    var marsCount = parseInt(localStorage.getItem('lufer_mars_count') || '0') + 1;
+    localStorage.setItem('lufer_mars_count', marsCount);
+    if (marsCount >= 2) {
+      unlockAchievement('mars_basmiyor');
+      localStorage.setItem('lufer_mars_count', '0');
+    }
+  } else {
+    // 3 saniyeyi aştıysa seriyi sıfırla
+    localStorage.setItem('lufer_mars_count', '0');
+  }
+  localStorage.removeItem('lufer_last_clockin_ts');
+  // "Deve Susuz" başarımı — ilk mola sonrası 5 saat molasız çalışıldı mı?
+  var deveIlkMolaBitti = localStorage.getItem('lufer_deve_ilk_mola_bitti') === '1';
+  var deveBitisTs = parseInt(localStorage.getItem('lufer_deve_bitis_ts') || '0');
+  if (deveIlkMolaBitti && deveBitisTs && (Date.now() - deveBitisTs) >= 5 * 3600 * 1000) {
+    unlockAchievement('deve_susuz');
+  }
+  localStorage.removeItem('lufer_deve_ilk_mola_bitti');
+  localStorage.removeItem('lufer_deve_bitis_ts');
   if (state.isOnBreak) { breakEnd(); }
   if (state.isOnGorev) { gorevEnd(); }
   state.isWorking = false;
@@ -1745,7 +1812,7 @@ function clockOut() {
   state.workStart = null;
   saveState();
   var nowD2 = new Date();
-  checkAchievements('clockOut', { time:pad(nowD2.getHours())+':'+pad(nowD2.getMinutes()), date:dateKey() });
+  checkAchievements('clockOut', { time:pad(nowD2.getHours())+':'+pad(nowD2.getMinutes()), sec:nowD2.getSeconds(), date:dateKey() });
   checkAchievements('addRecord', { type:'cikis', time:pad(nowD2.getHours())+':'+pad(nowD2.getMinutes()), date:dateKey(), dow:nowD2.getDay() });
   syncUI();
   renderTodayLog();
@@ -1757,6 +1824,14 @@ function breakStart() {
   if (!state.isWorking || state.isOnBreak) return;
   state.isOnBreak  = true;
   state.breakStart = Date.now();
+  // "Deve Susuz" başarımı — yeni mola başlıyor; ilk mola sonrası sayaç varsa kontrol et ve sıfırla
+  var deveIlkMolaBitti = localStorage.getItem('lufer_deve_ilk_mola_bitti') === '1';
+  var deveBitisTs = parseInt(localStorage.getItem('lufer_deve_bitis_ts') || '0');
+  if (deveIlkMolaBitti && deveBitisTs && (Date.now() - deveBitisTs) >= 5 * 3600 * 1000) {
+    unlockAchievement('deve_susuz');
+  }
+  // Sayacı sıfırla — bu moladan sonra yeniden başlayacak
+  localStorage.removeItem('lufer_deve_bitis_ts');
   addRecord('mola-bas');
   checkAchievements('breakStart', {});
   syncUI();
@@ -1770,6 +1845,9 @@ function breakEnd() {
   state.isOnBreak  = false;
   addRecord('mola-bit');
   state.breakStart = null;
+  // "Deve Susuz" başarımı — mola tamamlandı, 5 saatlik sayacı başlat
+  localStorage.setItem('lufer_deve_ilk_mola_bitti', '1');
+  localStorage.setItem('lufer_deve_bitis_ts', Date.now());
   saveState();
   syncUI();
   renderTodayLog();
@@ -1979,8 +2057,35 @@ function calNextMonth() {
   renderCalendar();
 }
 
+// ── Harita Yok başarımı için boş-gün zamanlayıcısı ──────────────
+var _haritaTimer = null;
+var _haritaDate  = null;
+
+function _haritaStop() {
+  if (_haritaTimer) { clearTimeout(_haritaTimer); _haritaTimer = null; }
+  _haritaDate = null;
+}
+
+function _haritaStart(dateStr) {
+  _haritaStop();
+  var recs = state.records.filter(function(r){ return r && r.date === dateStr; });
+  var izinRecs = [], mesaiRecs = [];
+  try { izinRecs  = JSON.parse(localStorage.getItem('mesai_izin_records')  || '[]'); } catch(e) {}
+  try { mesaiRecs = JSON.parse(localStorage.getItem('mesai_extra_records') || '[]'); } catch(e) {}
+  var hasAny = recs.length ||
+    izinRecs.filter(function(r){ return r && r.date === dateStr; }).length ||
+    mesaiRecs.filter(function(r){ return r && r.date === dateStr; }).length;
+  if (hasAny) return;
+  _haritaDate = dateStr;
+  _haritaTimer = setTimeout(function() {
+    if (_haritaDate === dateStr) unlockAchievement('harita_yok');
+    _haritaDate = null; _haritaTimer = null;
+  }, 10000);
+}
+
 function calSelectDay(dateStr) {
   calSelectedDate = dateStr;
+  _haritaStart(dateStr);
   renderCalendar();
   renderDayDetail(dateStr);
 }
@@ -1990,15 +2095,68 @@ function renderDayDetail(dateStr) {
   const emptyEl  = document.getElementById('cal-empty');
   const titleEl  = document.getElementById('cal-detail-title');
 
-  // Mesai kayıtları — giris en üstte, cikis en altta, arada kronolojik sıra
-  const recs = state.records
-    .filter(r => r && r.date === dateStr)
-    .sort((a, b) => {
-      const order = t => t === 'giris' ? -1 : t === 'cikis' ? 1 : 0;
-      const oa = order(a.type), ob = order(b.type);
-      if (oa !== ob) return oa - ob;
-      return (a.ts || 0) - (b.ts || 0);
-    });
+  // Mesai kayıtları — bu güne ait kayıtlar + gece yarısı taşan vardiyaların çıkış/giriş kayıtları
+  const recsThisDay = state.records.filter(r => r && r.date === dateStr);
+
+  // Tüm kayıtları zaman sırasıyla işleyerek giriş/çıkış çiftlerini eşleştir.
+  // Bu güne ait girişlerin çıkışı başka günde → o çıkışı taşan olarak ekle.
+  // Bu güne ait çıkışın girişi başka günde → o girişi taşan olarak ekle.
+  const allRecs = (() => {
+    const extra = [];
+
+    // Tüm giriş/çıkış kayıtlarını zaman sırasına göre işle
+    const allSorted = state.records
+      .filter(r => r && (r.type === 'giris' || r.type === 'cikis'))
+      .sort((a,b) => (a.ts||0)-(b.ts||0));
+
+    // Her girişin eşleşen çıkışını bul (aralarında başka giriş yoksa)
+    // pairs: Map<girisId, cikisRecord | null>
+    const pairs = new Map(); // girisId -> cikisRecord veya null (açık vardiya)
+    for (let i = 0; i < allSorted.length; i++) {
+      if (allSorted[i].type !== 'giris') continue;
+      const giris = allSorted[i];
+      let matched = null;
+      for (let j = i + 1; j < allSorted.length; j++) {
+        if (allSorted[j].type === 'giris') break;
+        if (allSorted[j].type === 'cikis') { matched = allSorted[j]; break; }
+      }
+      pairs.set(giris.id, matched);
+    }
+
+    // Bu günde girişi olan çiftler: çıkışı başka günde ise ekle
+    for (const [girisId, cikis] of pairs) {
+      const giris = allSorted.find(r => r.id === girisId);
+      if (!giris || giris.date !== dateStr) continue;
+      if (cikis && cikis.date !== dateStr) {
+        extra.push({ ...cikis, _overnight: true });
+      }
+    }
+
+    // Bu günde çıkışı olan çiftler: girişi başka günde ise ekle
+    for (const [girisId, cikis] of pairs) {
+      if (!cikis || cikis.date !== dateStr) continue;
+      const giris = allSorted.find(r => r.id === girisId);
+      if (giris && giris.date !== dateStr) {
+        extra.push({ ...giris, _overnight: true });
+      }
+    }
+
+    // Bu günde hiç eşleşmemiş çıkış varsa (girişi önceki günde ama pairs'e girmemiş)
+    // Bu durum olamaz normal akışta ama garanti için kontrol et
+    const pairedCikisIds = new Set([...pairs.values()].filter(Boolean).map(r => r.id));
+    const pairedGirisIds = new Set([...pairs.keys()]);
+    const unpairedCikisler = recsThisDay.filter(r => r.type === 'cikis' && !pairedCikisIds.has(r.id));
+    for (const cikis of unpairedCikisler) {
+      const prevGiris = [...allSorted].reverse().find(r =>
+        r.type === 'giris' && r.ts < cikis.ts && r.date < dateStr && !pairedGirisIds.has(r.id)
+      );
+      if (prevGiris) extra.push({ ...prevGiris, _overnight: true });
+    }
+
+    return [...recsThisDay, ...extra];
+  })();
+
+  const recs = allRecs.sort((a, b) => (a.ts||0) - (b.ts||0));
 
   // İzin ve ekstra mesai kayıtları
   var izinRecs  = [];
@@ -2023,11 +2181,16 @@ function renderDayDetail(dateStr) {
   detailEl.style.display = 'block';
   emptyEl.style.display  = 'none';
 
-  // Süre hesapla (sadece mesai kayıtlarından)
+  // Süre hesapla — bu günün kendi girişleriyle başlayan çiftler (taşan girişler hariç)
+  // _overnight=true olan giriş kayıtları önceki güne ait, o günün süresine katılmaz
+  // _overnight=true olan çıkış kayıtları ise bu günün açık girişini kapatır, katılır
   let workMs = 0, breakMs = 0, gorevMs = 0;
   let lastIn = null, lastBreakStart = null, lastGorevStart = null;
   for (const r of recs) {
-    if (r.type === 'giris')     { lastIn = r.ts; }
+    if (r.type === 'giris') {
+      // Önceki günden taşan giriş → bu günün süresine katma, sadece referans için göster
+      if (!r._overnight) lastIn = r.ts;
+    }
     if (r.type === 'cikis')     { if (lastIn) { workMs += r.ts - lastIn; lastIn = null; } }
     if (r.type === 'mola-bas')  { lastBreakStart = r.ts; }
     if (r.type === 'mola-bit')  { if (lastBreakStart) { breakMs += r.ts - lastBreakStart; lastBreakStart = null; } }
@@ -2050,7 +2213,12 @@ function renderDayDetail(dateStr) {
       const displayName = (isMola && r.label && r.label.trim()) ? `${t.icon} ${r.label}` : `${t.icon} ${t.label}`;
       const noteHtml = (isMola && r.note && r.note.trim())
         ? `<div style="font-size:.75rem;color:var(--muted);margin-top:3px;padding-left:18px;">${r.note}</div>` : '';
-      return `<div class="log-item" style="${noteHtml ? 'flex-direction:column;align-items:stretch;gap:4px;' : ''}">
+      // Gece yarısı taşan kayıt etiketi
+      const overnightHtml = r._overnight
+        ? `<div style="font-size:.68rem;color:var(--amber);opacity:.85;margin-top:2px;padding-left:2px;">🌙 ${r.date} tarihli kayıt</div>` : '';
+      const editDelHtml = r._overnight ? '' : `<button class="edit-btn" onclick="openEditModal(${r.id})" title="Düzenle">✏️</button>
+            <button class="del-btn"  onclick="deleteRecord(${r.id})"  title="Sil">🗑</button>`;
+      return `<div class="log-item" style="${(noteHtml||overnightHtml) ? 'flex-direction:column;align-items:stretch;gap:4px;' : ''}${r._overnight ? 'opacity:.75;' : ''}">
         <div style="display:flex;align-items:center;justify-content:space-between;width:100%;">
           <div class="log-type">
             <span class="log-badge ${t.cls}"></span>
@@ -2058,11 +2226,10 @@ function renderDayDetail(dateStr) {
           </div>
           <div style="display:flex;align-items:center;gap:8px">
             <span class="log-time">${r.time}</span>
-            <button class="edit-btn" onclick="openEditModal(${r.id})" title="Düzenle">✏️</button>
-            <button class="del-btn"  onclick="deleteRecord(${r.id})"  title="Sil">🗑</button>
+            ${editDelHtml}
           </div>
         </div>
-        ${noteHtml}
+        ${noteHtml}${overnightHtml}
       </div>`;
     }).join('');
   }
@@ -2228,13 +2395,14 @@ function saveAddRecord() {
   }
 
   state.records.push(newRec);
+  try { localStorage.setItem('mesai_records', JSON.stringify(state.records)); } catch(e) {}
   saveState();
 
   // Başarım kontrolü
   var d2 = new Date(ts);
   checkAchievements('addRecord', { type: recType, time: timeVal, date: calSelectedDate, dow: d2.getDay() });
   if (recType === 'giris') checkAchievements('clockIn', {});
-  if (recType === 'cikis') checkAchievements('clockOut', { time: timeVal, date: calSelectedDate });
+  if (recType === 'cikis') checkAchievements('clockOut', { time: timeVal, sec: null, date: calSelectedDate });
   if (recType === 'mola-bas') checkAchievements('breakStart', {});
 
   document.getElementById('add-record-overlay').style.display = 'none';
@@ -3469,6 +3637,12 @@ var ACHIEVEMENTS = [
   { id:'zaman_bukucu', cat:'Gizli', realDesc:'Giriş ve çıkış saatini aynı gün düzenle.', icon:'🤯', name:'Zaman Bükücü', desc:'???', secret:true },
   { id:'gece_baykusu', cat:'Gizli', realDesc:'Bir haftada 3 kez 22:00 sonrası çıkış yap.', icon:'🦉', name:'Gece Baykuşu', desc:'???', secret:true },
   { id:'roket_mesai',  cat:'Gizli', icon:'🚀', name:'Roket Mesai',  desc:'???', realDesc:'Bir ayda 200 saat çalış.',                     secret:true },
+  { id:'mars_basmiyor', cat:'Gizli', icon:'🔒', name:'Marş Basmıyor Herhalde Kaptan, Jikleyi Çek', desc:'???', realDesc:'Girişi başlattıktan 3 saniye içinde durdurmayı üst üste 2 kez yap.', secret:true },
+  { id:'deve_susuz', cat:'Gizli', icon:'🔒', name:'Develer Bile Çölde Bu Kadar Susuz Kalmıyor, Git Bir Su İç!', desc:'???', realDesc:'Mola almadan aralıksız 5 saat çalış.', secret:true },
+  { id:'son_saniye', cat:'Gizli', icon:'🔒', name:'Ağlara Takılmaktan Son Saniyede Yırttın :P', desc:'???', realDesc:'08:29:53 ile 08:29:58 arasında işe giriş yap.', secret:true },
+  { id:'gotham', cat:'Gizli', icon:'🔒', name:"Gotham'ın Sana İhtiyacı Var!", desc:'???', realDesc:'Gece 00:00 ile 04:00 arasında çıkış yap.', secret:true },
+  { id:'esnaf_isi', cat:'Gizli', icon:'🔒', name:'Ne Bir Eksik Ne Bir Fazla. Esnaf İşi Mesai...', desc:'???', realDesc:'Tam 18:00:01 ile 18:00:59 arasında çıkış yap.', secret:true },
+  { id:'harita_yok', cat:'Gizli', icon:'🔒', name:'Dünyanın Sonuna Geldik Kaptan, Buradan İlerisi Haritalarda Yok', desc:'???', realDesc:'Takvimde hiç kaydı olmayan bir günde 10 saniye kal.', secret:true },
 ];
 
 var ACH_CATEGORY_ORDER = [
@@ -3732,6 +3906,11 @@ function checkAchievements(trigger, meta) {
       return r.type==='cikis' && r.date >= weekStr && toMin(r.time) >= 22*60;
     }).length;
     if (lateExits >= 3) unlockAchievement('gece_baykusu');
+    // Gotham — çıkış saati 00:00–03:59 arasında
+    var exitMin = toMin(meta.time);
+    if (exitMin >= 0 && exitMin < 4*60) unlockAchievement('gotham');
+    // Esnaf İşi — çıkış tam 18:00:00–18:00:59 arasında (gerçek zamanlı çıkışta)
+    if (exitMin === 18*60 && typeof meta.sec === 'number' && meta.sec >= 1) unlockAchievement('esnaf_isi');
     // Mükemmel ay
     if (sched && sched.wdStart) {
       var monthEntries = recs.filter(function(r){
