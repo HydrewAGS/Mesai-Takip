@@ -979,12 +979,11 @@
       <div class="summary-card amber">
         <div class="s-label">Çalışma Süresi</div>
         <div class="s-value" id="s-work">00:00</div>
-        <div id="s-work-target" style="font-size:.68rem;color:var(--muted);margin-top:3px;display:none;">Hedef: <span id="s-work-target-val"></span></div>
       </div>
       <div class="summary-card green">
         <div class="s-label">Mola Süresi</div>
         <div class="s-value" id="s-break">00:00</div>
-        <div id="s-break-target" style="font-size:.68rem;color:var(--muted);margin-top:3px;display:none;">Hedef: <span id="s-break-target-val"></span></div>
+        <div id="s-break-goal" style="display:none; font-size:.68rem; font-weight:600; margin-top:4px; letter-spacing:.3px;"></div>
       </div>
       <div class="summary-card" style="background:rgba(100,160,255,.08);border-color:rgba(100,160,255,.35);">
         <div class="s-label" style="color:#6DA4E0;">Görev Süresi</div>
@@ -1506,17 +1505,17 @@
 
     <!-- Tarih seçimi -->
     <div style="padding:1.25rem 1.75rem; border-bottom:1px solid var(--border);">
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:.75rem; margin-bottom:1rem;">
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:.75rem; margin-bottom:1rem; align-items:end;">
         <div>
           <label style="display:block; font-size:.72rem; font-weight:600;
-            text-transform:uppercase; letter-spacing:1.5px; color:var(--muted); margin-bottom:6px;">
+            text-transform:uppercase; letter-spacing:1.5px; color:var(--muted); margin-bottom:6px; line-height:1.3;">
             📅 Başlangıç Tarihi
           </label>
           <input type="date" id="range-start" class="sched-input" style="width:100%; box-sizing:border-box;">
         </div>
         <div>
           <label style="display:block; font-size:.72rem; font-weight:600;
-            text-transform:uppercase; letter-spacing:1.5px; color:var(--muted); margin-bottom:6px;">
+            text-transform:uppercase; letter-spacing:1.5px; color:var(--muted); margin-bottom:6px; line-height:1.3;">
             📅 Bitiş Tarihi
           </label>
           <input type="date" id="range-end" class="sched-input" style="width:100%; box-sizing:border-box;">
@@ -1880,39 +1879,32 @@ function updateSummary() {
   if (sg) sg.textContent  = toHM(gorevMs);
   if (sn) sn.textContent  = toHM(Math.max(0, workMs - breakMs));
 
-  // Hedef gösterimi
+  // Hedef gösterimi — net mesai ve mola üzerinden %
   var tgt = (typeof getTodayTargets === 'function') ? getTodayTargets() : null;
-  var swt = document.getElementById('s-work-target');
-  var swv = document.getElementById('s-work-target-val');
-  var sbt = document.getElementById('s-break-target');
-  var sbv = document.getElementById('s-break-target-val');
-  if (tgt) {
-    if (swt && swv) {
-      var workDoneMin = Math.floor(workMs / 60000);
-      var workPct = tgt.workMin > 0 ? Math.min(100, Math.round(workDoneMin / tgt.workMin * 100)) : 0;
-      var wH = Math.floor(tgt.workMin / 60), wM = tgt.workMin % 60;
-      var wStr = wH > 0 ? wH + 's ' + (wM > 0 ? wM + 'dk' : '') : wM + 'dk';
-      swv.textContent = wStr.trim() + ' (' + workPct + '%)';
-      swt.style.display = 'block';
-      swt.style.color = workDoneMin >= tgt.workMin ? 'var(--green)' : 'var(--muted)';
+  var sng = document.getElementById('s-net-goal');
+  var sbg = document.getElementById('s-break-goal');
+  if (tgt && tgt.workMin > 0) {
+    // Net mesai %
+    if (sng) {
+      var netDoneMin = Math.floor(Math.max(0, workMs - breakMs) / 60000);
+      var netPct = Math.min(100, Math.round(netDoneMin / tgt.workMin * 100));
+      sng.textContent   = 'Hedef: %' + netPct;
+      sng.style.color   = netDoneMin >= tgt.workMin ? 'var(--green)' : 'var(--muted)';
+      sng.style.display = 'block';
     }
-    if (sbt && sbv) {
+    // Mola %
+    if (sbg && tgt.breakMin > 0) {
       var breakDoneMin = Math.floor(breakMs / 60000);
-      var breakPct = tgt.breakMin > 0 ? Math.min(100, Math.round(breakDoneMin / tgt.breakMin * 100)) : 0;
-      var bH = Math.floor(tgt.breakMin / 60), bM = tgt.breakMin % 60;
-      var bStr = bH > 0 ? bH + 's ' + (bM > 0 ? bM + 'dk' : '') : bM + 'dk';
-      sbv.textContent = bStr.trim() + ' (' + breakPct + '%)';
-      sbt.style.display = 'block';
-      sbt.style.color = breakDoneMin >= tgt.breakMin ? 'var(--green)' : 'var(--muted)';
+      var breakPct = Math.min(100, Math.round(breakDoneMin / tgt.breakMin * 100));
+      sbg.textContent   = 'Hedef: %' + breakPct;
+      sbg.style.color   = breakDoneMin >= tgt.breakMin ? 'var(--green)' : 'var(--muted)';
+      sbg.style.display = 'block';
+    } else if (sbg) {
+      sbg.style.display = 'none';
     }
-    // Net mesai hedef bildirimi — s-net-goal (kart içi, gizli kalabilir)
-    var sng = document.getElementById('s-net-goal');
-    if (sng) sng.style.display = 'none';
   } else {
-    if (swt) swt.style.display = 'none';
-    if (sbt) sbt.style.display = 'none';
-    var sng = document.getElementById('s-net-goal');
     if (sng) sng.style.display = 'none';
+    if (sbg) sbg.style.display = 'none';
   }
 }
 
