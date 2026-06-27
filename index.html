@@ -935,6 +935,18 @@
           <div style="font-size:.75rem;color:var(--muted);margin-top:1px;" id="schedule-btn-sub">Henüz ayarlanmadı</div>
         </div>
       </button>
+      <button onclick="openTargetsModal()" style="
+        width:100%;background:none;border:none;color:var(--text);
+        padding:10px 12px;text-align:left;cursor:pointer;border-radius:8px;
+        font-size:.88rem;display:flex;align-items:center;gap:10px;
+        transition:background .15s;
+      " onmouseover="this.style.background='var(--panel)'" onmouseout="this.style.background='none'">
+        <span style="font-size:1.1rem;">🎯</span>
+        <div>
+          <div style="font-weight:600;">Hedef Saatleri Ayarla</div>
+          <div style="font-size:.75rem;color:var(--muted);margin-top:1px;" id="targets-btn-sub">Günlük çalışma ve mola hedefleri</div>
+        </div>
+      </button>
       <div style="height:1px;background:var(--border);margin:4px 8px;"></div>
       <button onclick="openResetModal()" style="
         width:100%;background:none;border:none;color:var(--red);
@@ -967,10 +979,12 @@
       <div class="summary-card amber">
         <div class="s-label">Çalışma Süresi</div>
         <div class="s-value" id="s-work">00:00</div>
+        <div id="s-work-target" style="font-size:.68rem;color:var(--muted);margin-top:3px;display:none;">Hedef: <span id="s-work-target-val"></span></div>
       </div>
       <div class="summary-card green">
         <div class="s-label">Mola Süresi</div>
         <div class="s-value" id="s-break">00:00</div>
+        <div id="s-break-target" style="font-size:.68rem;color:var(--muted);margin-top:3px;display:none;">Hedef: <span id="s-break-target-val"></span></div>
       </div>
       <div class="summary-card" style="background:rgba(100,160,255,.08);border-color:rgba(100,160,255,.35);">
         <div class="s-label" style="color:#6DA4E0;">Görev Süresi</div>
@@ -979,6 +993,7 @@
       <div class="summary-card red">
         <div class="s-label">Net Mesai</div>
         <div class="s-value" id="s-net">00:00</div>
+        <div id="s-net-goal" style="display:none; font-size:.68rem; font-weight:600; margin-top:4px; letter-spacing:.3px;"></div>
       </div>
     </div>
 
@@ -1087,6 +1102,18 @@
       " onmouseover="this.style.borderColor='var(--amber)'" onmouseout="this.style.borderColor='var(--border)'">›</button>
     </div>
 
+    <!-- Tarih Aralığı Raporu Butonu -->
+    <button onclick="openRangeReportModal()" style="
+      width:100%; background:var(--panel); border:1px solid var(--border);
+      color:var(--text); border-radius:10px; padding:10px 16px;
+      cursor:pointer; font-size:.88rem; font-weight:600;
+      display:flex; align-items:center; justify-content:center; gap:8px;
+      transition:all .15s; margin-bottom:1rem;
+    " onmouseover="this.style.borderColor='var(--amber)';this.style.color='var(--amber)'"
+       onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text)'">
+      📊 Tarih Aralığı Raporu
+    </button>
+
     <!-- Takvim Grid -->
     <div style="
       background:var(--surface); border:1px solid var(--border);
@@ -1142,6 +1169,20 @@
           <div class="s-value" id="cal-s-net">--:--</div>
         </div>
       </div>
+
+      <!-- Hedef durum bildirimi -->
+      <div id="cal-goal-status" style="
+        margin-bottom:12px;
+        padding:10px 16px;
+        border-radius:10px;
+        font-size:.82rem;
+        font-weight:600;
+        text-align:center;
+        letter-spacing:.2px;
+        border:1px solid var(--border);
+        background:var(--panel);
+        color:var(--muted);
+      ">📋 Henüz Log Girilmedi</div>
 
       <!-- Kayıt listesi -->
       <div id="cal-record-list" class="log-list"></div>
@@ -1434,6 +1475,178 @@
   </div>
 </div>
 
+<!-- ── TARİH ARALIĞI RAPORU MODAL ── -->
+<div id="range-report-overlay" style="
+  display:none; position:fixed; inset:0; z-index:600;
+  background:rgba(0,0,0,.7); backdrop-filter:blur(6px);
+  align-items:center; justify-content:center; padding:1rem;
+" onclick="closeRangeReportModal(event)">
+  <div style="
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:18px; padding:0; width:100%; max-width:560px;
+    box-shadow:0 24px 60px rgba(0,0,0,.6);
+    animation:modal-in .22s cubic-bezier(.34,1.56,.64,1);
+    max-height:90vh; overflow-y:auto;
+  " onclick="event.stopPropagation()">
+
+    <!-- Başlık -->
+    <div style="
+      padding:1.5rem 1.75rem 1.25rem;
+      border-bottom:1px solid var(--border);
+      display:flex; align-items:center; gap:12px;
+    ">
+      <span style="font-size:1.6rem;">📊</span>
+      <div>
+        <div style="font-weight:700; font-size:1.05rem;">Tarih Aralığı Raporu</div>
+        <div style="font-size:.8rem; color:var(--muted); margin-top:2px;">
+          Seçili tarihler arasındaki çalışma özetini görüntüle
+        </div>
+      </div>
+    </div>
+
+    <!-- Tarih seçimi -->
+    <div style="padding:1.25rem 1.75rem; border-bottom:1px solid var(--border);">
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:.75rem; margin-bottom:1rem;">
+        <div>
+          <label style="display:block; font-size:.72rem; font-weight:600;
+            text-transform:uppercase; letter-spacing:1.5px; color:var(--muted); margin-bottom:6px;">
+            📅 Başlangıç Tarihi
+          </label>
+          <input type="date" id="range-start" class="sched-input" style="width:100%; box-sizing:border-box;">
+        </div>
+        <div>
+          <label style="display:block; font-size:.72rem; font-weight:600;
+            text-transform:uppercase; letter-spacing:1.5px; color:var(--muted); margin-bottom:6px;">
+            📅 Bitiş Tarihi
+          </label>
+          <input type="date" id="range-end" class="sched-input" style="width:100%; box-sizing:border-box;">
+        </div>
+      </div>
+      <div id="range-error" style="
+        display:none; background:rgba(224,92,92,.1); border:1px solid var(--red);
+        border-radius:8px; padding:.6rem 1rem; font-size:.82rem; color:var(--red);
+        margin-bottom:.75rem;
+      "></div>
+      <button onclick="generateRangeReport()" style="
+        width:100%; background:var(--amber); border:1px solid var(--amber);
+        color:#0B1929; border-radius:10px; padding:11px;
+        cursor:pointer; font-size:.9rem; font-weight:700;
+        transition:all .15s;
+      ">🔍 Raporu Oluştur</button>
+    </div>
+
+    <!-- Sonuçlar -->
+    <div id="range-report-results" style="display:none;">
+      <!-- Günlük liste -->
+      <div style="padding:1.25rem 1.75rem 0;">
+        <div style="
+          font-size:.72rem; font-weight:700; text-transform:uppercase;
+          letter-spacing:1.5px; color:var(--muted); margin-bottom:.75rem;
+          padding-bottom:.5rem; border-bottom:1px solid var(--border);
+        ">Günlük Detay</div>
+        <div id="range-daily-list" style="display:flex; flex-direction:column; gap:6px;"></div>
+      </div>
+
+      <!-- Toplam özet -->
+      <div style="padding:1.25rem 1.75rem;">
+        <div style="
+          font-size:.72rem; font-weight:700; text-transform:uppercase;
+          letter-spacing:1.5px; color:var(--muted); margin-bottom:.75rem;
+          padding-bottom:.5rem; border-bottom:1px solid var(--border);
+        ">Toplam Özet</div>
+        <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:.75rem;">
+          <div class="summary-card amber" style="text-align:center;">
+            <div class="s-label">Brüt Çalışma</div>
+            <div class="s-value" id="range-total-work" style="font-size:1.1rem;">--</div>
+          </div>
+          <div class="summary-card green" style="text-align:center;">
+            <div class="s-label">Toplam Mola</div>
+            <div class="s-value" id="range-total-break" style="font-size:1.1rem; color:var(--green);">--</div>
+          </div>
+          <div class="summary-card red" style="text-align:center;">
+            <div class="s-label">Net Çalışma</div>
+            <div class="s-value" id="range-total-net" style="font-size:1.1rem;">--</div>
+          </div>
+        </div>
+        <div id="range-day-count" style="text-align:center; font-size:.8rem; color:var(--muted); margin-top:.75rem;"></div>
+      </div>
+    </div>
+
+    <!-- Kapat -->
+    <div style="padding:0 1.75rem 1.5rem; display:flex; justify-content:flex-end;">
+      <button onclick="closeRangeReportModalBtn()" style="
+        background:var(--panel); border:1px solid var(--border);
+        color:var(--text); border-radius:10px; padding:10px 20px;
+        cursor:pointer; font-size:.88rem; font-weight:600;
+        transition:all .15s;
+      ">✕ Kapat</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── HEDEF SAATLER MODAL ── -->
+<div id="targets-overlay" style="
+  display:none; position:fixed; inset:0; z-index:600;
+  background:rgba(0,0,0,.7); backdrop-filter:blur(6px);
+  align-items:center; justify-content:center; padding:1rem;
+" onclick="closeTargetsModal(event)">
+  <div style="
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:18px; padding:0; width:100%; max-width:500px;
+    box-shadow:0 24px 60px rgba(0,0,0,.6);
+    animation:modal-in .22s cubic-bezier(.34,1.56,.64,1);
+    max-height:90vh; overflow-y:auto;
+  " onclick="event.stopPropagation()">
+    <!-- Başlık -->
+    <div style="
+      padding:1.5rem 1.75rem 1.25rem;
+      border-bottom:1px solid var(--border);
+      display:flex; align-items:center; gap:12px;
+    ">
+      <span style="font-size:1.6rem;">🎯</span>
+      <div>
+        <div style="font-weight:700;font-size:1.05rem;">Hedef Saatler</div>
+        <div style="font-size:.8rem;color:var(--muted);margin-top:2px;">
+          Günlük çalışma ve mola hedeflerinizi belirleyin
+        </div>
+      </div>
+    </div>
+
+    <!-- İçerik -->
+    <div style="padding:1.5rem 1.75rem;">
+
+      <!-- Mesai saati ayarlanmamış uyarısı -->
+      <div id="targets-no-schedule" style="display:none; text-align:center; padding:1.5rem 0;">
+        <div style="font-size:2rem; margin-bottom:.75rem;">📅</div>
+        <div style="font-size:.9rem; font-weight:600; color:var(--text); margin-bottom:.4rem;">Önce mesai saatlerinizi belirleyin</div>
+        <div style="font-size:.82rem; color:var(--muted);">Hedef saatleri ayarlayabilmek için Ayarlar → Mesai Saatlerini Ayarla bölümünden çalışma günlerinizi kaydedin.</div>
+      </div>
+
+      <!-- Gün bazlı hedefler (dinamik) -->
+      <div id="targets-days-container"></div>
+
+      <!-- Bilgi kutusu -->
+      <div id="targets-info-box" style="
+        background:rgba(245,166,35,.08); border:1px solid rgba(245,166,35,.3);
+        border-radius:10px; padding:1rem 1.25rem; margin-bottom:1.5rem;
+        display:flex; gap:10px; align-items:flex-start;
+      ">
+        <span style="font-size:1.1rem; flex-shrink:0;">💡</span>
+        <div style="font-size:.82rem; color:var(--text); line-height:1.55;">
+          Hedefler, günlük özet kartlarında gerçekleşen sürenin yanında görüntülenir.
+          İstediğiniz zaman güncelleyebilirsiniz.
+        </div>
+      </div>
+
+      <!-- Butonlar -->
+      <div style="display:flex; gap:10px; justify-content:space-between; align-items:center;">
+        <button class="btn btn-secondary" onclick="closeTargetsModalBtn()" style="min-width:unset;padding:13px 18px;">✕ Kapat</button>
+        <button id="targets-save-btn" class="btn btn-primary" onclick="saveTargets()">🎯 Kaydet</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="edit-overlay" onclick="closeEditModal(event)">
   <div id="edit-modal">
     <h3 id="edit-modal-title">Kaydı Düzenle</h3>
@@ -1666,6 +1879,41 @@ function updateSummary() {
   if (sb) sb.textContent  = toHM(breakMs);
   if (sg) sg.textContent  = toHM(gorevMs);
   if (sn) sn.textContent  = toHM(Math.max(0, workMs - breakMs));
+
+  // Hedef gösterimi
+  var tgt = (typeof getTodayTargets === 'function') ? getTodayTargets() : null;
+  var swt = document.getElementById('s-work-target');
+  var swv = document.getElementById('s-work-target-val');
+  var sbt = document.getElementById('s-break-target');
+  var sbv = document.getElementById('s-break-target-val');
+  if (tgt) {
+    if (swt && swv) {
+      var workDoneMin = Math.floor(workMs / 60000);
+      var workPct = tgt.workMin > 0 ? Math.min(100, Math.round(workDoneMin / tgt.workMin * 100)) : 0;
+      var wH = Math.floor(tgt.workMin / 60), wM = tgt.workMin % 60;
+      var wStr = wH > 0 ? wH + 's ' + (wM > 0 ? wM + 'dk' : '') : wM + 'dk';
+      swv.textContent = wStr.trim() + ' (' + workPct + '%)';
+      swt.style.display = 'block';
+      swt.style.color = workDoneMin >= tgt.workMin ? 'var(--green)' : 'var(--muted)';
+    }
+    if (sbt && sbv) {
+      var breakDoneMin = Math.floor(breakMs / 60000);
+      var breakPct = tgt.breakMin > 0 ? Math.min(100, Math.round(breakDoneMin / tgt.breakMin * 100)) : 0;
+      var bH = Math.floor(tgt.breakMin / 60), bM = tgt.breakMin % 60;
+      var bStr = bH > 0 ? bH + 's ' + (bM > 0 ? bM + 'dk' : '') : bM + 'dk';
+      sbv.textContent = bStr.trim() + ' (' + breakPct + '%)';
+      sbt.style.display = 'block';
+      sbt.style.color = breakDoneMin >= tgt.breakMin ? 'var(--green)' : 'var(--muted)';
+    }
+    // Net mesai hedef bildirimi — s-net-goal (kart içi, gizli kalabilir)
+    var sng = document.getElementById('s-net-goal');
+    if (sng) sng.style.display = 'none';
+  } else {
+    if (swt) swt.style.display = 'none';
+    if (sbt) sbt.style.display = 'none';
+    var sng = document.getElementById('s-net-goal');
+    if (sng) sng.style.display = 'none';
+  }
 }
 
 // ── ACTIONS ───────────────────────────────────────────────────
@@ -2200,6 +2448,36 @@ function renderDayDetail(dateStr) {
   document.getElementById('cal-s-work').textContent  = toHM(workMs);
   document.getElementById('cal-s-break').textContent = toHM(breakMs);
   document.getElementById('cal-s-net').textContent   = toHM(Math.max(0, workMs - breakMs));
+
+  // Hedef bildirim kutusu
+  const goalBar = document.getElementById('cal-goal-status');
+  if (goalBar) {
+    const dow = d.getDay();
+    const goalMin = getTargetMinutesForDay(dow);
+    const netDoneMin = Math.floor(Math.max(0, workMs - breakMs) / 60000);
+    const hasWork = workMs > 0;
+    if (!hasWork) {
+      goalBar.textContent      = '📋 Henüz Log Girilmedi';
+      goalBar.style.background = 'var(--panel)';
+      goalBar.style.color      = 'var(--muted)';
+      goalBar.style.borderColor= 'var(--border)';
+    } else if (!goalMin) {
+      goalBar.textContent      = '📋 Hedef Saat Tanımlanmamış';
+      goalBar.style.background = 'var(--panel)';
+      goalBar.style.color      = 'var(--muted)';
+      goalBar.style.borderColor= 'var(--border)';
+    } else if (netDoneMin >= goalMin) {
+      goalBar.textContent      = '✓ Hedef Çalışma Süresi Tamamlandı';
+      goalBar.style.background = 'rgba(100,185,100,.12)';
+      goalBar.style.color      = '#7DBF7D';
+      goalBar.style.borderColor= 'rgba(100,185,100,.3)';
+    } else {
+      goalBar.textContent      = '◑ Hedef Çalışma Süresi Kısmen Tamamlandı';
+      goalBar.style.background = 'rgba(200,168,75,.1)';
+      goalBar.style.color      = '#C8A84B';
+      goalBar.style.borderColor= 'rgba(200,168,75,.3)';
+    }
+  }
 
   // ── Mesai kayıt listesi
   const listEl = document.getElementById('cal-record-list');
@@ -3592,10 +3870,382 @@ function saveWorkSchedule() {
 // Sayfa yüklenince buton durumunu güncelle
 document.addEventListener('DOMContentLoaded', function() {
   updateScheduleButtonUI();
+  updateTargetsButtonUI();
 });
 // (DOMContentLoaded bazen geç tetiklenir, direkt de çalıştır)
 updateScheduleButtonUI();
 updateAchievementBadge();
+
+// ── HEDEF SAATLER ────────────────────────────────────────────────────
+
+function loadTargets() {
+  try {
+    return JSON.parse(localStorage.getItem('lufer_targets') || 'null');
+  } catch(e) { return null; }
+}
+
+// Gün numarasından kısa ad
+var DAY_SHORT = ['Paz','Pzt','Sal','Çar','Per','Cum','Cmt'];
+var DAY_FULL  = ['Pazar','Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi'];
+
+function updateTargetsButtonUI() {
+  var t   = loadTargets();
+  var sub = document.getElementById('targets-btn-sub');
+  if (!sub) return;
+  if (t && t.days && Object.keys(t.days).length > 0) {
+    var parts = Object.keys(t.days).map(function(d) {
+      return DAY_SHORT[parseInt(d)] + ': ' + t.days[d].work;
+    });
+    sub.textContent = parts.join(' · ');
+  } else {
+    sub.textContent = 'Günlük çalışma ve mola hedefleri';
+  }
+}
+
+function openTargetsModal() {
+  document.getElementById('settings-panel').style.display = 'none';
+
+  var sched = loadWorkSchedule();
+  var noSchedEl  = document.getElementById('targets-no-schedule');
+  var container  = document.getElementById('targets-days-container');
+  var infoBox    = document.getElementById('targets-info-box');
+  var saveBtn    = document.getElementById('targets-save-btn');
+
+  // Mesai saatleri ayarlanmamışsa uyarı göster
+  if (!sched || !sched.locked) {
+    noSchedEl.style.display  = 'block';
+    container.style.display  = 'none';
+    infoBox.style.display    = 'none';
+    saveBtn.style.display    = 'none';
+    document.getElementById('targets-overlay').style.display = 'flex';
+    return;
+  }
+
+  noSchedEl.style.display = 'none';
+  container.style.display = 'block';
+  infoBox.style.display   = 'flex';
+  saveBtn.style.display   = '';
+
+  // Tüm aktif günleri topla: weekdays + weekendDays
+  var activeDays = (sched.weekdays || []).slice();
+  if (sched.weekendEnabled && sched.weekendDays) {
+    sched.weekendDays.forEach(function(d) {
+      if (activeDays.indexOf(d) < 0) activeDays.push(d);
+    });
+  }
+  // Haftanın sırasına göre sırala: 1,2,3,4,5,6,0
+  var ORDER = [1,2,3,4,5,6,0];
+  activeDays.sort(function(a,b) { return ORDER.indexOf(a) - ORDER.indexOf(b); });
+
+  // Kayıtlı hedefleri yükle (yeni format: {days:{1:{work,break},...}})
+  var t = loadTargets();
+  var saved = (t && t.days) ? t.days : {};
+
+  // Eski format uyumu: wdWork/satWork/sunWork varsa dönüştür
+  if (t && !t.days) {
+    saved = {};
+    if (t.wdWork)  { [1,2,3,4,5].forEach(function(d){ saved[d] = { work: t.wdWork,  brk: t.wdBreak  || '01:00' }; }); }
+    if (t.satWork) { saved[6] = { work: t.satWork, brk: t.satBreak || '00:30' }; }
+    if (t.sunWork) { saved[0] = { work: t.sunWork, brk: t.sunBreak || '00:30' }; }
+  }
+
+  // Dinamik form oluştur
+  var html = '';
+  activeDays.forEach(function(d, idx) {
+    var isWeekend = (d === 0 || d === 6);
+    var defWork   = isWeekend ? '06:00' : '08:00';
+    var defBrk    = isWeekend ? '00:30' : '01:00';
+    var curWork   = (saved[d] && saved[d].work) ? saved[d].work : defWork;
+    var curBrk    = (saved[d] && saved[d].brk)  ? saved[d].brk  : defBrk;
+    var mb        = idx < activeDays.length - 1 ? 'margin-bottom:1.25rem;' : 'margin-bottom:1.5rem;';
+    html += '<div style="' + mb + '">'
+      + '<div style="font-size:.78rem; font-weight:700; color:var(--amber); margin-bottom:.6rem; display:flex; align-items:center; gap:6px;">'
+      + '<span>' + (isWeekend ? '🌅' : '🏢') + '</span>'
+      + '<span>' + DAY_FULL[d] + '</span>'
+      + '</div>'
+      + '<div style="display:grid; grid-template-columns:1fr 1fr; gap:.75rem;">'
+      + '<div><label style="display:block;font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:6px;">🏢 Çalışma Süresi</label>'
+      + '<input type="time" id="day-target-work-' + d + '" value="' + curWork + '" class="sched-input"></div>'
+      + '<div><label style="display:block;font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:6px;">☕ Mola Süresi</label>'
+      + '<input type="time" id="day-target-brk-' + d + '" value="' + curBrk + '" class="sched-input"></div>'
+      + '</div>'
+      + (idx < activeDays.length - 1 ? '<div style="border-bottom:1px solid var(--border);margin-top:1.25rem;"></div>' : '')
+      + '</div>';
+  });
+  container.innerHTML = html;
+  // Aktif gün listesini container'a sakla (saveTargets için)
+  container.setAttribute('data-days', JSON.stringify(activeDays));
+
+  document.getElementById('targets-overlay').style.display = 'flex';
+}
+
+function closeTargetsModal(e) {
+  if (e && e.target !== document.getElementById('targets-overlay')) return;
+  document.getElementById('targets-overlay').style.display = 'none';
+}
+
+function closeTargetsModalBtn() {
+  document.getElementById('targets-overlay').style.display = 'none';
+}
+
+function saveTargets() {
+  var container   = document.getElementById('targets-days-container');
+  var activeDays  = JSON.parse(container.getAttribute('data-days') || '[]');
+  var days        = {};
+  activeDays.forEach(function(d) {
+    var workEl = document.getElementById('day-target-work-' + d);
+    var brkEl  = document.getElementById('day-target-brk-'  + d);
+    if (workEl) {
+      days[d] = {
+        work: workEl.value || '08:00',
+        brk:  brkEl  ? (brkEl.value || '01:00') : '01:00',
+      };
+    }
+  });
+
+  var targets = { days: days, savedAt: new Date().toISOString() };
+  try { localStorage.setItem('lufer_targets', JSON.stringify(targets)); } catch(e) {}
+
+  updateTargetsButtonUI();
+  document.getElementById('targets-overlay').style.display = 'none';
+  showToast('\uD83C\uDFAF Hedef saatler kaydedildi!');
+}
+
+// Hedef saatleri dakikaya çevir
+function targetToMinutes(hhmm) {
+  if (!hhmm) return null;
+  var parts = hhmm.split(':');
+  if (parts.length < 2) return null;
+  return parseInt(parts[0]) * 60 + parseInt(parts[1]);
+}
+
+// Belirli bir gün için hedef dakika döndür
+function getTargetMinutesForDay(dow) {
+  var t = loadTargets();
+  if (!t) return null;
+  // Yeni format
+  if (t.days) {
+    var entry = t.days[dow];
+    return entry ? targetToMinutes(entry.work) : null;
+  }
+  // Eski format uyumu
+  if (dow === 6 && t.satWork) return targetToMinutes(t.satWork);
+  if (dow === 0 && t.sunWork) return targetToMinutes(t.sunWork);
+  if (dow >= 1 && dow <= 5 && t.wdWork) return targetToMinutes(t.wdWork);
+  return null;
+}
+
+// Bugünün gün tipini belirle ve uygun hedefleri döndür
+function getTodayTargets() {
+  var t = loadTargets();
+  if (!t) return null;
+  var dow = new Date().getDay();
+  if (t.days) {
+    var entry = t.days[dow];
+    if (!entry) return null;
+    return { workMin: targetToMinutes(entry.work), breakMin: targetToMinutes(entry.brk) };
+  }
+  // Eski format uyumu
+  if (dow === 6) {
+    if (!t.satWork) return null;
+    return { workMin: targetToMinutes(t.satWork), breakMin: targetToMinutes(t.satBreak) };
+  } else if (dow === 0) {
+    if (!t.sunWork) return null;
+    return { workMin: targetToMinutes(t.sunWork), breakMin: targetToMinutes(t.sunBreak) };
+  } else {
+    if (!t.wdWork) return null;
+    return { workMin: targetToMinutes(t.wdWork), breakMin: targetToMinutes(t.wdBreak) };
+  }
+}
+
+updateTargetsButtonUI();
+
+// ── TARİH ARALIĞI RAPORU ─────────────────────────────────────────
+
+function openRangeReportModal() {
+  // Varsayılan: bu ayın 1i – bugün
+  var now = new Date();
+  var y = now.getFullYear(), m = now.getMonth();
+  var firstOfMonth = y + '-' + String(m+1).padStart(2,'0') + '-01';
+  var today = y + '-' + String(m+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+  document.getElementById('range-start').value = firstOfMonth;
+  document.getElementById('range-end').value   = today;
+  document.getElementById('range-error').style.display   = 'none';
+  document.getElementById('range-report-results').style.display = 'none';
+  document.getElementById('range-report-overlay').style.display = 'flex';
+}
+
+function closeRangeReportModal(e) {
+  if (e && e.target !== document.getElementById('range-report-overlay')) return;
+  document.getElementById('range-report-overlay').style.display = 'none';
+}
+
+function closeRangeReportModalBtn() {
+  document.getElementById('range-report-overlay').style.display = 'none';
+}
+
+function generateRangeReport() {
+  var startVal = document.getElementById('range-start').value;
+  var endVal   = document.getElementById('range-end').value;
+  var errEl    = document.getElementById('range-error');
+  errEl.style.display = 'none';
+
+  if (!startVal || !endVal) {
+    errEl.textContent = 'Lütfen başlangıç ve bitiş tarihlerini girin.';
+    errEl.style.display = 'block'; return;
+  }
+  if (startVal > endVal) {
+    errEl.textContent = 'Başlangıç tarihi bitiş tarihinden sonra olamaz.';
+    errEl.style.display = 'block'; return;
+  }
+
+  // Tarih aralığındaki tüm günleri oluştur
+  var days = [];
+  var cur = new Date(startVal + 'T00:00:00');
+  var end = new Date(endVal   + 'T00:00:00');
+  while (cur <= end) {
+    var dk = cur.getFullYear() + '-'
+      + String(cur.getMonth()+1).padStart(2,'0') + '-'
+      + String(cur.getDate()).padStart(2,'0');
+    days.push(dk);
+    cur.setDate(cur.getDate() + 1);
+  }
+
+  // Tüm kayıtları yükle
+  var allRecs = [];
+  try { allRecs = JSON.parse(localStorage.getItem('mesai_records') || '[]'); } catch(e) {}
+
+  // İzin kayıtlarını yükle (görüntülemek için, toplamlara dahil edilmez)
+  var allIzinRecs = [];
+  try { allIzinRecs = JSON.parse(localStorage.getItem('mesai_izin_records') || '[]'); } catch(e) {}
+
+  // Gün adları
+  var DAYS_TR = ['Paz','Pzt','Sal','Çar','Per','Cum','Cmt'];
+  var MONTHS_TR_SHORT = ['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
+
+  var totalWorkMs = 0, totalBreakMs = 0;
+  var activeDays = 0;
+  var izinDays = 0;
+  var listHtml = '';
+
+  for (var i = 0; i < days.length; i++) {
+    var dateStr = days[i];
+    var dayRecs = allRecs.filter(function(r){ return r && r.date === dateStr; })
+                         .sort(function(a,b){ return (a.ts||0)-(b.ts||0); });
+
+    // Bu güne ait izin kayıtları
+    var dayIzinRecs = allIzinRecs.filter(function(r){ return r && r.date === dateStr; });
+
+    // Çalışma ve mola süresi hesapla
+    var workMs = 0, breakMs = 0;
+    var lastIn = null, lastBreakStart = null;
+    for (var j = 0; j < dayRecs.length; j++) {
+      var r = dayRecs[j];
+      if (r.type === 'giris')    { lastIn = r.ts; }
+      if (r.type === 'cikis')    { if (lastIn) { workMs += r.ts - lastIn; lastIn = null; } }
+      if (r.type === 'mola-bas') { lastBreakStart = r.ts; }
+      if (r.type === 'mola-bit') { if (lastBreakStart) { breakMs += r.ts - lastBreakStart; lastBreakStart = null; } }
+    }
+    var netMs = Math.max(0, workMs - breakMs);
+
+    // Kayıt olan günler (mesai veya izin)
+    var hasWork = workMs > 0 || dayRecs.some(function(r){ return r.type === 'giris'; });
+    var hasIzin = dayIzinRecs.length > 0;
+
+    if (!hasWork && !hasIzin) continue;
+
+    // Gün başlığı
+    var dp = dateStr.split('-');
+    var dObj = new Date(parseInt(dp[0]), parseInt(dp[1])-1, parseInt(dp[2]));
+    var dayLabel = DAYS_TR[dObj.getDay()] + ', ' + dObj.getDate() + ' ' + MONTHS_TR_SHORT[dObj.getMonth()];
+
+    if (hasWork) {
+      // Toplamlara yalnızca çalışılan günler eklenir
+      totalWorkMs  += workMs;
+      totalBreakMs += breakMs;
+      activeDays++;
+
+      // Renk: net süre vs günün hedef çalışma süresi
+      var netMin = Math.floor(netMs / 60000);
+      var dow = dObj.getDay(); // 0=Paz, 6=Cmt
+      var goalMin = getTargetMinutesForDay(dow) || 480; // hedef yoksa 8 saat varsayılan
+      var netColor = netMin >= goalMin ? 'var(--green)' : '#D98080';
+
+      var rowBg = 'background:var(--panel);';
+      var sep   = 'border-bottom:1px solid var(--border);';
+      var cellStyleFirst = rowBg + sep + 'padding:9px 4px 9px 14px; border-radius:8px 0 0 8px;';
+      var cellStyleMid   = rowBg + sep + 'padding:9px 10px; border-left:1px solid var(--border); text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums;';
+      var cellStyleLast  = rowBg + sep + 'padding:9px 14px 9px 10px; border-left:1px solid var(--border); border-radius:0 8px 8px 0; text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums;';
+
+      listHtml += ''
+        + '<span style="' + cellStyleFirst + 'font-size:.85rem; font-weight:600; color:var(--text);">' + dayLabel + '</span>'
+        + '<span style="' + cellStyleMid   + 'font-size:.78rem; color:var(--amber);">⏱ ' + toHM(workMs) + '</span>'
+        + '<span style="' + cellStyleMid   + 'font-size:.78rem; color:var(--green);">☕ ' + toHM(breakMs) + '</span>'
+        + '<span style="' + cellStyleLast  + 'font-size:.82rem; font-weight:700; color:' + netColor + ';">Net ' + toHM(netMs) + '</span>';
+
+      // Bu günde izin de varsa altına göster (bilgi amaçlı)
+      if (hasIzin) {
+        for (var iz = 0; iz < dayIzinRecs.length; iz++) {
+          var izRec = dayIzinRecs[iz];
+          var izinLabel = izRec.type || 'İzin';
+          var izinNote  = izRec.note ? ' · ' + izRec.note : '';
+          listHtml += '<div style="'
+            + 'grid-column:1/-1;'
+            + 'background:rgba(91,188,255,.07); border:1px solid rgba(91,188,255,.25); border-radius:8px;'
+            + 'padding:7px 14px; display:flex; align-items:center; gap:8px; margin-top:-2px;">'
+            + '<span style="font-size:.82rem;">🏖️</span>'
+            + '<span style="font-size:.78rem; color:#5bbcff; font-weight:600;">' + izinLabel + '</span>'
+            + '<span style="font-size:.72rem; color:var(--muted); margin-left:auto;">' + izinNote + 'Toplamlara dahil değil</span>'
+            + '</div>';
+        }
+      }
+
+    } else if (hasIzin) {
+      // Sadece izin olan günler: görünür ama toplamlara eklenmez
+      izinDays++;
+      listHtml += '<div style="'
+        + 'grid-column:1/-1;'
+        + 'background:rgba(91,188,255,.07); border:1px solid rgba(91,188,255,.25); border-radius:10px;'
+        + 'padding:10px 14px; display:flex; align-items:center; gap:10px;">'
+        + '<span style="font-size:.85rem; font-weight:600; color:#5bbcff;">' + dayLabel + '</span>';
+
+      for (var iz2 = 0; iz2 < dayIzinRecs.length; iz2++) {
+        var izRec2 = dayIzinRecs[iz2];
+        var izinLabel2 = izRec2.type || 'İzin';
+        var izinNote2  = izRec2.note ? ' · "' + izRec2.note + '"' : '';
+        listHtml += '<span style="'
+          + 'background:rgba(91,188,255,.15); border:1px solid rgba(91,188,255,.3);'
+          + 'border-radius:6px; padding:2px 8px; font-size:.75rem; color:#5bbcff; white-space:nowrap;">'
+          + '🏖️ ' + izinLabel2 + izinNote2
+          + '</span>';
+      }
+
+      listHtml += '<span style="font-size:.72rem; color:var(--muted); margin-left:auto; white-space:nowrap;">Toplamlara dahil değil</span>'
+        + '</div>';
+    }
+  }
+
+  if (activeDays === 0 && izinDays === 0) {
+    listHtml = '<div style="text-align:center; color:var(--muted); font-size:.88rem; padding:1rem 0;">'
+      + '📭 Bu tarih aralığında kayıt bulunamadı.</div>';
+  }
+
+  document.getElementById('range-daily-list').innerHTML =
+    (activeDays === 0 && izinDays === 0)
+      ? listHtml
+      : '<div style="display:grid; grid-template-columns:1fr max-content max-content max-content; gap:4px 0; align-items:stretch;">' + listHtml + '</div>';
+  document.getElementById('range-total-work').textContent  = toHM(totalWorkMs);
+  document.getElementById('range-total-break').textContent = toHM(totalBreakMs);
+  document.getElementById('range-total-net').textContent   = toHM(Math.max(0, totalWorkMs - totalBreakMs));
+
+  var countParts = [];
+  if (activeDays > 0) countParts.push(activeDays + ' çalışma günü');
+  if (izinDays   > 0) countParts.push(izinDays   + ' izin günü (toplama dahil değil)');
+  document.getElementById('range-day-count').textContent =
+    countParts.length > 0 ? countParts.join(' · ') + ' · ' + days.length + ' gün aralık' : '';
+
+  document.getElementById('range-report-results').style.display = 'block';
+}
 
 // ── BAŞARIMLAR ────────────────────────────────────────────────────
 
