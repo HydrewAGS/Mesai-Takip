@@ -260,23 +260,24 @@
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    padding: 1rem .75rem;
+    padding: clamp(.5rem, 2vw, 1rem) clamp(.4rem, 1.5vw, .75rem);
     min-width: 0;
     overflow: hidden;
   }
   .summary-card .s-label {
-    font-size: .65rem;
+    font-size: clamp(.58rem, 1.4vw, .65rem);
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: .5px;
     color: var(--muted);
     margin-bottom: 4px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: normal;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    line-height: 1.3;
   }
   .summary-card .s-value {
     font-family: 'JetBrains Mono', monospace;
-    font-size: clamp(.85rem, 3.5vw, 1.35rem);
+    font-size: clamp(.72rem, 2.8vw, 1.35rem);
     font-weight: 600;
     color: var(--text);
     white-space: nowrap;
@@ -1156,7 +1157,7 @@
       </div>
 
       <!-- Özet kartları -->
-      <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:.75rem; margin-bottom:1.25rem;">
+      <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:.75rem; margin-bottom:1.25rem;">
         <div class="summary-card amber">
           <div class="s-label">Çalışma</div>
           <div class="s-value" id="cal-s-work">--:--</div>
@@ -1168,6 +1169,10 @@
         <div class="summary-card red">
           <div class="s-label">Net Mesai</div>
           <div class="s-value" id="cal-s-net">--:--</div>
+        </div>
+        <div class="summary-card" style="border-color:rgba(109,164,224,.35); background:rgba(109,164,224,.07);">
+          <div class="s-label" style="color:#6DA4E0;">Görev Süresi</div>
+          <div class="s-value" id="cal-s-gorev" style="color:#6DA4E0;">--:--</div>
         </div>
       </div>
 
@@ -1539,34 +1544,51 @@
     <!-- Sonuçlar -->
     <div id="range-report-results" style="display:none;">
       <!-- Günlük liste -->
-      <div style="padding:1.25rem 1.75rem 0;">
+      <div style="padding:1.25rem 1.25rem 0;">
         <div style="
           font-size:.72rem; font-weight:700; text-transform:uppercase;
           letter-spacing:1.5px; color:var(--muted); margin-bottom:.75rem;
           padding-bottom:.5rem; border-bottom:1px solid var(--border);
         ">Günlük Detay</div>
-        <div id="range-daily-list" style="display:flex; flex-direction:column; gap:6px;"></div>
+        <div id="range-daily-list" style="display:flex; flex-direction:column; gap:6px; overflow:hidden;"></div>
       </div>
 
       <!-- Toplam özet -->
-      <div style="padding:1.25rem 1.75rem;">
+      <div style="padding:1.25rem 1.25rem;">
         <div style="
           font-size:.72rem; font-weight:700; text-transform:uppercase;
           letter-spacing:1.5px; color:var(--muted); margin-bottom:.75rem;
           padding-bottom:.5rem; border-bottom:1px solid var(--border);
         ">Toplam Özet</div>
-        <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:.75rem;">
+        <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:.6rem;">
           <div class="summary-card amber" style="text-align:center;">
             <div class="s-label">Brüt Çalışma</div>
-            <div class="s-value" id="range-total-work" style="font-size:1.1rem;">--</div>
+            <div class="s-value" id="range-total-work">--</div>
           </div>
           <div class="summary-card green" style="text-align:center;">
             <div class="s-label">Toplam Mola</div>
-            <div class="s-value" id="range-total-break" style="font-size:1.1rem; color:var(--green);">--</div>
+            <div class="s-value" id="range-total-break" style="color:var(--green);">--</div>
           </div>
           <div class="summary-card red" style="text-align:center;">
             <div class="s-label">Net Çalışma</div>
-            <div class="s-value" id="range-total-net" style="font-size:1.1rem;">--</div>
+            <div class="s-value" id="range-total-net">--</div>
+          </div>
+          <div class="summary-card" style="text-align:center; border-color:rgba(109,164,224,.35);">
+            <div class="s-label" style="color:#6DA4E0;">Görev Süresi</div>
+            <div class="s-value" id="range-total-gorev" style="color:#6DA4E0;">--</div>
+          </div>
+        </div>
+        <!-- Hedef ve fark karşılaştırması -->
+        <div id="range-target-section" style="display:none; margin-top:.75rem;">
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:.6rem; margin-bottom:.6rem;">
+            <div class="summary-card" style="text-align:center; border-color:rgba(180,180,180,.3); background:rgba(180,180,180,.06);">
+              <div class="s-label" style="color:var(--muted);">Hedef Mesai</div>
+              <div class="s-value" id="range-total-target" style="color:var(--text);">--</div>
+            </div>
+            <div class="summary-card" id="range-diff-card" style="text-align:center;">
+              <div class="s-label" id="range-diff-label">Fark</div>
+              <div class="s-value" id="range-total-diff">--</div>
+            </div>
           </div>
         </div>
         <div id="range-day-count" style="text-align:center; font-size:.8rem; color:var(--muted); margin-top:.75rem;"></div>
@@ -2079,6 +2101,7 @@ function breakStart() {
   syncUI();
   renderTodayLog();
   renderBreakLog();
+  updateGameHubLockState();
   showToast('☕ Mola başladı – ' + nowStr());
 }
 
@@ -2090,10 +2113,17 @@ function breakEnd() {
   // "Deve Susuz" başarımı — mola tamamlandı, 5 saatlik sayacı başlat
   localStorage.setItem('lufer_deve_ilk_mola_bitti', '1');
   localStorage.setItem('lufer_deve_bitis_ts', Date.now());
+  // Mola bitti — açık oyunu kapat
+  const runnerOverlay = document.getElementById('runner-overlay');
+  if (runnerOverlay && runnerOverlay.style.display !== 'none') {
+    if (typeof closeRunnerGame === 'function') closeRunnerGame();
+    showToast('⏸ Mola bitti, oyun kapatıldı.');
+  }
   saveState();
   syncUI();
   renderTodayLog();
   renderBreakLog();
+  updateGameHubLockState();
   showToast('🔙 Moladan dönüldü – ' + nowStr());
 }
 
@@ -2458,6 +2488,7 @@ function renderDayDetail(dateStr) {
   document.getElementById('cal-s-work').textContent  = toHM(workMs);
   document.getElementById('cal-s-break').textContent = toHM(breakMs);
   document.getElementById('cal-s-net').textContent   = toHM(Math.max(0, workMs - breakMs));
+  document.getElementById('cal-s-gorev').textContent = toHM(gorevMs);
 
   // Hedef bildirim kutusu
   const goalBar = document.getElementById('cal-goal-status');
@@ -4133,7 +4164,7 @@ function generateRangeReport() {
   var DAYS_TR = ['Paz','Pzt','Sal','Çar','Per','Cum','Cmt'];
   var MONTHS_TR_SHORT = ['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
 
-  var totalWorkMs = 0, totalBreakMs = 0;
+  var totalWorkMs = 0, totalBreakMs = 0, totalGorevMs = 0, totalTargetMs = 0;
   var activeDays = 0;
   var izinDays = 0;
   var listHtml = '';
@@ -4146,15 +4177,17 @@ function generateRangeReport() {
     // Bu güne ait izin kayıtları
     var dayIzinRecs = allIzinRecs.filter(function(r){ return r && r.date === dateStr; });
 
-    // Çalışma ve mola süresi hesapla
-    var workMs = 0, breakMs = 0;
-    var lastIn = null, lastBreakStart = null;
+    // Çalışma, mola ve görev süresi hesapla
+    var workMs = 0, breakMs = 0, gorevMs = 0;
+    var lastIn = null, lastBreakStart = null, lastGorevStart = null;
     for (var j = 0; j < dayRecs.length; j++) {
       var r = dayRecs[j];
       if (r.type === 'giris')    { lastIn = r.ts; }
       if (r.type === 'cikis')    { if (lastIn) { workMs += r.ts - lastIn; lastIn = null; } }
       if (r.type === 'mola-bas') { lastBreakStart = r.ts; }
       if (r.type === 'mola-bit') { if (lastBreakStart) { breakMs += r.ts - lastBreakStart; lastBreakStart = null; } }
+      if (r.type === 'gorev-bas') { lastGorevStart = r.ts; }
+      if (r.type === 'gorev-bit') { if (lastGorevStart) { gorevMs += r.ts - lastGorevStart; lastGorevStart = null; } }
     }
     var netMs = Math.max(0, workMs - breakMs);
 
@@ -4173,7 +4206,11 @@ function generateRangeReport() {
       // Toplamlara yalnızca çalışılan günler eklenir
       totalWorkMs  += workMs;
       totalBreakMs += breakMs;
+      totalGorevMs += gorevMs;
       activeDays++;
+      // Bu günün hedef çalışma süresi (tanımlıysa topla)
+      var dayTargetMin = getTargetMinutesForDay(dObj.getDay());
+      if (dayTargetMin) totalTargetMs += dayTargetMin * 60000;
 
       // Renk: net süre vs günün hedef çalışma süresi
       var netMin = Math.floor(netMs / 60000);
@@ -4181,17 +4218,35 @@ function generateRangeReport() {
       var goalMin = getTargetMinutesForDay(dow) || 480; // hedef yoksa 8 saat varsayılan
       var netColor = netMin >= goalMin ? 'var(--green)' : '#D98080';
 
-      var rowBg = 'background:var(--panel);';
-      var sep   = 'border-bottom:1px solid var(--border);';
-      var cellStyleFirst = rowBg + sep + 'padding:9px 4px 9px 14px; border-radius:8px 0 0 8px;';
-      var cellStyleMid   = rowBg + sep + 'padding:9px 10px; border-left:1px solid var(--border); text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums;';
-      var cellStyleLast  = rowBg + sep + 'padding:9px 14px 9px 10px; border-left:1px solid var(--border); border-radius:0 8px 8px 0; text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums;';
+      // ── Kart yapısı: üst satır tarih + net, alt satır chip'ler ──
+      var gorevChip = gorevMs > 0
+        ? '<span style="display:inline-flex;align-items:center;gap:4px;'
+          + 'background:rgba(109,164,224,.12);border:1px solid rgba(109,164,224,.3);'
+          + 'border-radius:20px;padding:3px 9px;font-size:.73rem;color:#6DA4E0;font-variant-numeric:tabular-nums;white-space:nowrap;">'
+          + '🚗 ' + toHM(gorevMs) + '</span>'
+        : '';
 
-      listHtml += ''
-        + '<span style="' + cellStyleFirst + 'font-size:.85rem; font-weight:600; color:var(--text);">' + dayLabel + '</span>'
-        + '<span style="' + cellStyleMid   + 'font-size:.78rem; color:var(--amber);">⏱ ' + toHM(workMs) + '</span>'
-        + '<span style="' + cellStyleMid   + 'font-size:.78rem; color:var(--green);">☕ ' + toHM(breakMs) + '</span>'
-        + '<span style="' + cellStyleLast  + 'font-size:.82rem; font-weight:700; color:' + netColor + ';">Net ' + toHM(netMs) + '</span>';
+      listHtml += '<div style="'
+        + 'background:var(--panel);border:1px solid var(--border);border-radius:10px;'
+        + 'padding:10px 12px;display:flex;flex-direction:column;gap:6px;min-width:0;">'
+        // üst satır: tarih solda, net sağda
+        + '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0;">'
+        +   '<span style="font-size:.87rem;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + dayLabel + '</span>'
+        +   '<span style="font-family:monospace;font-size:.9rem;font-weight:700;color:' + netColor + ';white-space:nowrap;flex-shrink:0;">Net ' + toHM(netMs) + '</span>'
+        + '</div>'
+        // alt satır: chip'ler
+        + '<div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center;">'
+        +   '<span style="display:inline-flex;align-items:center;gap:4px;'
+            + 'background:rgba(245,166,35,.1);border:1px solid rgba(245,166,35,.3);'
+            + 'border-radius:20px;padding:3px 9px;font-size:.73rem;color:var(--amber);font-variant-numeric:tabular-nums;white-space:nowrap;">'
+            + '⏱ ' + toHM(workMs) + '</span>'
+        +   '<span style="display:inline-flex;align-items:center;gap:4px;'
+            + 'background:rgba(100,185,100,.1);border:1px solid rgba(100,185,100,.3);'
+            + 'border-radius:20px;padding:3px 9px;font-size:.73rem;color:var(--green);font-variant-numeric:tabular-nums;white-space:nowrap;">'
+            + '☕ ' + toHM(breakMs) + '</span>'
+        +   gorevChip
+        + '</div>'
+        + '</div>';
 
       // Bu günde izin de varsa altına göster (bilgi amaçlı)
       if (hasIzin) {
@@ -4200,37 +4255,38 @@ function generateRangeReport() {
           var izinLabel = izRec.type || 'İzin';
           var izinNote  = izRec.note ? ' · ' + izRec.note : '';
           listHtml += '<div style="'
-            + 'grid-column:1/-1;'
-            + 'background:rgba(91,188,255,.07); border:1px solid rgba(91,188,255,.25); border-radius:8px;'
-            + 'padding:7px 14px; display:flex; align-items:center; gap:8px; margin-top:-2px;">'
+            + 'background:rgba(91,188,255,.06);border:1px solid rgba(91,188,255,.22);border-radius:8px;'
+            + 'padding:7px 12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">'
             + '<span style="font-size:.82rem;">🏖️</span>'
-            + '<span style="font-size:.78rem; color:#5bbcff; font-weight:600;">' + izinLabel + '</span>'
-            + '<span style="font-size:.72rem; color:var(--muted); margin-left:auto;">' + izinNote + 'Toplamlara dahil değil</span>'
+            + '<span style="font-size:.78rem;color:#5bbcff;font-weight:600;">' + izinLabel + '</span>'
+            + '<span style="font-size:.72rem;color:var(--muted);margin-left:auto;white-space:nowrap;">' + izinNote + 'Toplamlara dahil değil</span>'
             + '</div>';
         }
       }
 
     } else if (hasIzin) {
-      // Sadece izin olan günler: görünür ama toplamlara eklenmez
+      // Sadece izin olan günler
       izinDays++;
-      listHtml += '<div style="'
-        + 'grid-column:1/-1;'
-        + 'background:rgba(91,188,255,.07); border:1px solid rgba(91,188,255,.25); border-radius:10px;'
-        + 'padding:10px 14px; display:flex; align-items:center; gap:10px;">'
-        + '<span style="font-size:.85rem; font-weight:600; color:#5bbcff;">' + dayLabel + '</span>';
-
+      var izinChipsHtml = '';
       for (var iz2 = 0; iz2 < dayIzinRecs.length; iz2++) {
         var izRec2 = dayIzinRecs[iz2];
         var izinLabel2 = izRec2.type || 'İzin';
         var izinNote2  = izRec2.note ? ' · "' + izRec2.note + '"' : '';
-        listHtml += '<span style="'
-          + 'background:rgba(91,188,255,.15); border:1px solid rgba(91,188,255,.3);'
-          + 'border-radius:6px; padding:2px 8px; font-size:.75rem; color:#5bbcff; white-space:nowrap;">'
+        izinChipsHtml += '<span style="'
+          + 'display:inline-flex;align-items:center;gap:4px;'
+          + 'background:rgba(91,188,255,.12);border:1px solid rgba(91,188,255,.3);'
+          + 'border-radius:20px;padding:3px 9px;font-size:.73rem;color:#5bbcff;white-space:nowrap;">'
           + '🏖️ ' + izinLabel2 + izinNote2
           + '</span>';
       }
-
-      listHtml += '<span style="font-size:.72rem; color:var(--muted); margin-left:auto; white-space:nowrap;">Toplamlara dahil değil</span>'
+      listHtml += '<div style="'
+        + 'background:rgba(91,188,255,.05);border:1px solid rgba(91,188,255,.2);border-radius:10px;'
+        + 'padding:10px 12px;display:flex;flex-direction:column;gap:6px;">'
+        + '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">'
+        +   '<span style="font-size:.87rem;font-weight:700;color:#5bbcff;">' + dayLabel + '</span>'
+        +   '<span style="font-size:.72rem;color:var(--muted);white-space:nowrap;">Toplamlara dahil değil</span>'
+        + '</div>'
+        + '<div style="display:flex;flex-wrap:wrap;gap:5px;">' + izinChipsHtml + '</div>'
         + '</div>';
     }
   }
@@ -4240,13 +4296,52 @@ function generateRangeReport() {
       + '📭 Bu tarih aralığında kayıt bulunamadı.</div>';
   }
 
-  document.getElementById('range-daily-list').innerHTML =
-    (activeDays === 0 && izinDays === 0)
-      ? listHtml
-      : '<div style="display:grid; grid-template-columns:1fr max-content max-content max-content; gap:4px 0; align-items:stretch;">' + listHtml + '</div>';
+  document.getElementById('range-daily-list').innerHTML = listHtml;
   document.getElementById('range-total-work').textContent  = toHM(totalWorkMs);
   document.getElementById('range-total-break').textContent = toHM(totalBreakMs);
   document.getElementById('range-total-net').textContent   = toHM(Math.max(0, totalWorkMs - totalBreakMs));
+  document.getElementById('range-total-gorev').textContent = toHM(totalGorevMs);
+
+  // Hedef mesai ve fark hesabı
+  var targetSection = document.getElementById('range-target-section');
+  if (totalTargetMs > 0) {
+    var totalNetMs = Math.max(0, totalWorkMs - totalBreakMs);
+    var diffMs     = totalNetMs - totalTargetMs;
+    var diffAbs    = Math.abs(diffMs);
+    var isAhead    = diffMs >= 0;
+    var diffCard   = document.getElementById('range-diff-card');
+    var diffLabel  = document.getElementById('range-diff-label');
+    var diffValue  = document.getElementById('range-total-diff');
+    var targetEl   = document.getElementById('range-total-target');
+
+    targetEl.textContent = toHM(totalTargetMs);
+
+    if (diffMs === 0) {
+      diffCard.style.borderColor  = 'rgba(109,164,224,.35)';
+      diffCard.style.background   = 'rgba(109,164,224,.07)';
+      diffLabel.style.color       = '#6DA4E0';
+      diffLabel.textContent       = 'Hedefe Tam';
+      diffValue.style.color       = '#6DA4E0';
+      diffValue.textContent       = '0:00';
+    } else if (isAhead) {
+      diffCard.style.borderColor  = 'rgba(100,185,100,.35)';
+      diffCard.style.background   = 'rgba(100,185,100,.07)';
+      diffLabel.style.color       = 'var(--green)';
+      diffLabel.textContent       = '▲ Fazla Mesai';
+      diffValue.style.color       = 'var(--green)';
+      diffValue.textContent       = '+' + toHM(diffAbs);
+    } else {
+      diffCard.style.borderColor  = 'rgba(224,92,92,.35)';
+      diffCard.style.background   = 'rgba(224,92,92,.07)';
+      diffLabel.style.color       = 'var(--red)';
+      diffLabel.textContent       = '▼ Eksik Mesai';
+      diffValue.style.color       = 'var(--red)';
+      diffValue.textContent       = '-' + toHM(diffAbs);
+    }
+    targetSection.style.display = 'block';
+  } else {
+    targetSection.style.display = 'none';
+  }
 
   var countParts = [];
   if (activeDays > 0) countParts.push(activeDays + ' çalışma günü');
@@ -5263,16 +5358,29 @@ document.addEventListener('click', function(e) {
     <!-- Oyun Listesi -->
     <div style="padding:1rem;">
 
+      <!-- Mola uyarı banner -->
+      <div id="game-hub-lock-banner" style="
+        display:none; align-items:center; gap:10px;
+        padding:.7rem 1rem; border-radius:10px; margin-bottom:.85rem;
+        background:rgba(224,92,92,.1); border:1px solid rgba(224,92,92,.35);
+        font-size:.78rem; color:#E05C5C; line-height:1.45;
+      ">
+        <span style="font-size:1.1rem; flex-shrink:0;">🔒</span>
+        <span>Oyunlara erişim sağlayabilmeniz için <strong>molada olmanız</strong> gerekmektedir.</span>
+      </div>
+
       <!-- Ofis Kaçışı -->
-      <div onclick="closeGameHub();openRunnerGame();" style="
-        display:flex; align-items:center; gap:14px;
-        padding:1rem 1.1rem; border-radius:14px; border:1px solid var(--border);
-        background:var(--panel); cursor:pointer; margin-bottom:.75rem;
-        transition:border-color .15s, background .15s;
-      "
-      onmouseenter="this.style.borderColor='var(--amber)';this.style.background='var(--hover, rgba(255,180,0,.06))'"
-      onmouseleave="this.style.borderColor='var(--border)';this.style.background='var(--panel)'">
-        <div style="
+      <div id="game-card-runner"
+        onclick="gameCardClick()"
+        style="
+          display:flex; align-items:center; gap:14px;
+          padding:1rem 1.1rem; border-radius:14px; border:1px solid var(--border);
+          background:var(--panel); cursor:pointer; margin-bottom:.75rem;
+          transition:border-color .15s, background .15s, opacity .2s;
+        "
+        onmouseenter="gameCardHoverIn(this)"
+        onmouseleave="gameCardHoverOut(this)">
+        <div id="game-card-runner-icon" style="
           width:52px; height:52px; border-radius:12px; flex-shrink:0;
           background:linear-gradient(135deg,#1a3a5c,#0b1929);
           display:flex; align-items:center; justify-content:center; font-size:1.8rem;
@@ -5281,7 +5389,9 @@ document.addEventListener('click', function(e) {
           <div style="font-weight:700; font-size:.93rem; margin-bottom:3px;">Ofis Kaçışı</div>
           <div style="font-size:.75rem; color:var(--muted); line-height:1.5;">Toplantılardan kaç, e-postalardan zıpla!<br>Boşluk tuşu veya ekrana dokun.</div>
         </div>
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="9 18 15 12 9 6"/></svg>
+        <span id="game-card-runner-arrow">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="9 18 15 12 9 6"/></svg>
+        </span>
       </div>
 
       <!-- Yakında gelecek -->
@@ -5416,7 +5526,10 @@ document.addEventListener('click', function(e) {
   let cvs, ctx;
   let running = false;
   let raf = null;
-  let bestScore = 0;
+
+  // En yüksek skoru localStorage'dan yükle (yoksa 0)
+  const BEST_KEY = 'lufer_runner_best';
+  let bestScore = parseInt(localStorage.getItem(BEST_KEY) || '0', 10);
 
   // Oyun state
   let player, obstacles, particles;
@@ -5438,6 +5551,7 @@ document.addEventListener('click', function(e) {
       w: 32, h: 38,
       vy: 0,
       onGround: true,
+      jumpsLeft: 2,    // çift zıplama: 2 hak
       animFrame: 0, animTimer: 0,
     };
 
@@ -5497,6 +5611,7 @@ document.addEventListener('click', function(e) {
         player.y        = GROUND_Y;
         player.vy       = 0;
         player.onGround = true;
+        player.jumpsLeft = 2;   // yere inince haklar sıfırlanır
       }
     }
 
@@ -5578,8 +5693,8 @@ document.addEventListener('click', function(e) {
   // air    : havada, eğilerek geçilir (duck — ileride eklenebilir, şimdilik altından koşulur)
   // chain  : arka arkaya 2-3 yer engeli, kısa boşluklarla
 
-  // Hava engeli için Y pozisyonu: oyuncunun başı hizası
-  const AIR_Y = GROUND_Y - 38 - 14;  // 38 = player.h, sabit değer kullan
+  // Hava engeli için Y pozisyonu: oyuncunun kafa hizası — çift zıplamayla aşılamaz
+  const AIR_Y = GROUND_Y - 38 - 14 - 4;  // sabit referans değer
 
   function spawnObstacle(meter) {
     const roll = Math.random();
@@ -5673,10 +5788,11 @@ document.addEventListener('click', function(e) {
       { emoji:'📡', w:30, h:28 },
     ];
     const t = AIR_TYPES[Math.floor(Math.random() * AIR_TYPES.length)];
-    // Y: oyuncunun max zıplama zirvesinin hemen altında — zıplamak çarpıştırır, altından geçilir
-    // JUMP_V=-10.5, GRAVITY=0.9 → zirve ≈61px → kafa 130-61=69px'e çıkar
-    // airY gap=14 → alt kenar ≈116px > 69px → çarpar ✓
-    const airY = GROUND_Y - 38 - t.h - 14;
+    // Çift zıplama zirvesi ≈ 122px → hava engelinin alt kenarı bu zirveden aşağıda olmalı
+    // airY hesabı: GROUND_Y - player.h(38) - 4px boşluk → ~126px yüksekte
+    // Oyuncu başı çift zıplamada ≈ GROUND_Y - 38 - 122 = çok üstte → engelin içine girer
+    // Dolayısıyla engeli "kafa hizası" olarak ayarlıyoruz: altından koşulur, üstünden atlanamaz
+    const airY = GROUND_Y - 38 - t.h - 4;   // normal zıplama ~61px < engel alt kenarı ≈ 78px → çarpar
     obstacles.push({
       x: CW + 10,
       y: airY,
@@ -5715,7 +5831,7 @@ document.addEventListener('click', function(e) {
       { emoji:'📡', w:30, h:28 },
     ];
     const t    = AIR_TYPES[Math.floor(Math.random() * AIR_TYPES.length)];
-    const airY = GROUND_Y - 38 - t.h - 14;
+    const airY = GROUND_Y - 38 - t.h - 4;   // çift zıplamayla aşılamaz
     // Hava engeli önce geliyor (ekranın sağından ilk çıkan)
     obstacles.push({
       x: CW + 10,
@@ -5838,6 +5954,15 @@ document.addEventListener('click', function(e) {
     ctx.scale(-1, 1);
     drawEmoji(em, -cx, cy, 30);
     ctx.restore();
+
+    // Çift zıplama göstergesi: havadayken ve 1 hak kaldıysa küçük nokta
+    if (!player.onGround && player.jumpsLeft > 0) {
+      const pulse = 0.5 + 0.5 * Math.sin(frameN * 0.3);
+      ctx.fillStyle = `rgba(100, 200, 255, ${pulse})`;
+      ctx.beginPath();
+      ctx.arc(cx, player.y - player.h - 8, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 
   function drawObstacles() {
@@ -5923,7 +6048,7 @@ document.addEventListener('click', function(e) {
       ctx.font      = 'bold 14px system-ui, sans-serif';
       ctx.textAlign = 'center';
       ctx.fillStyle = `rgba(224,92,92,${alpha * pulse})`;
-      ctx.fillText('⬇ EĞİL!', CW / 2, 10);
+      ctx.fillText('⬇ ALTINDAN GEÇ!', CW / 2, 10);
     }
   }
 
@@ -5967,6 +6092,7 @@ document.addEventListener('click', function(e) {
     const isRecord = score > bestScore;
     if (isRecord) {
       bestScore = score;
+      localStorage.setItem(BEST_KEY, bestScore);   // kalıcı kayıt
       document.getElementById('runner-best').textContent = bestScore;
     }
     document.getElementById('runner-screen-icon').textContent   = isRecord ? '🏆' : '😓';
@@ -5983,9 +6109,10 @@ document.addEventListener('click', function(e) {
   // ─── Zıplama ────────────────────────────────────────────────────
   function jump() {
     if (!running) return;
-    if (player && player.onGround) {
+    if (player && player.jumpsLeft > 0) {
       player.vy       = JUMP_V;
       player.onGround = false;
+      player.jumpsLeft--;
     }
   }
 
@@ -6024,7 +6151,7 @@ document.addEventListener('click', function(e) {
     document.getElementById('runner-screen-icon').textContent   = '🏃';
     document.getElementById('runner-screen-title').textContent  = 'Ofis Koşucusu';
     document.getElementById('runner-screen-sub').innerHTML      =
-      'Toplantılardan kaç, e-postalardan zıpla!<br>Boşluk tuşu veya ekrana dokun.';
+      'Toplantılardan kaç, e-postalardan zıpla!<br>Çift zıplama var — hava engellerinin altından koş!<br>Boşluk tuşu veya ekrana dokun.';
     document.getElementById('runner-start-btn').textContent     = 'Başla';
     document.getElementById('runner-best').textContent          = bestScore;
     document.getElementById('runner-score-display').textContent = '0';
@@ -6051,9 +6178,58 @@ document.addEventListener('click', function(e) {
 // ── Oyun Merkezi ─────────────────────────────────────────────────────────────
 function openGameHub() {
   document.getElementById('game-hub-overlay').style.display = 'flex';
+  updateGameHubLockState();
 }
 function closeGameHub() {
   document.getElementById('game-hub-overlay').style.display = 'none';
+}
+
+// Oyun kartının kilit durumunu güncelle
+function updateGameHubLockState() {
+  const onBreak = state && state.isOnBreak;
+  const card    = document.getElementById('game-card-runner');
+  const banner  = document.getElementById('game-hub-lock-banner');
+  const icon    = document.getElementById('game-card-runner-icon');
+  const arrow   = document.getElementById('game-card-runner-arrow');
+  if (!card || !banner) return;
+
+  if (onBreak) {
+    // Aktif
+    card.style.opacity  = '1';
+    card.style.cursor   = 'pointer';
+    banner.style.display = 'none';
+    icon.textContent    = '🏃';
+    icon.style.background = 'linear-gradient(135deg,#1a3a5c,#0b1929)';
+    arrow.innerHTML     = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="9 18 15 12 9 6"/></svg>';
+  } else {
+    // Kilitli
+    card.style.opacity  = '0.45';
+    card.style.cursor   = 'not-allowed';
+    banner.style.display = 'flex';
+    icon.textContent    = '🔒';
+    icon.style.background = 'var(--panel)';
+    arrow.innerHTML     = '';
+  }
+}
+
+// Kart tıklama: molada ise oyunu aç, değilse bir şey yapma
+function gameCardClick() {
+  if (state && state.isOnBreak) {
+    closeGameHub();
+    openRunnerGame();
+  }
+}
+
+function gameCardHoverIn(el) {
+  if (state && state.isOnBreak) {
+    el.style.borderColor = 'var(--amber)';
+    el.style.background  = 'var(--hover, rgba(255,180,0,.06))';
+  }
+}
+
+function gameCardHoverOut(el) {
+  el.style.borderColor = 'var(--border)';
+  el.style.background  = 'var(--panel)';
 }
 </script>
 
