@@ -391,6 +391,7 @@
   }
   .cal-dot.amber { background: var(--amber); }
   .cal-dot.green { background: var(--green); }
+  .cal-dot.blue  { background: #5bbcff; }
   .cal-day.selected {
     background: var(--amber) !important;
     color: #0B1929 !important;
@@ -398,6 +399,7 @@
   }
   .cal-day.selected .cal-dot.amber { background: #0B1929; }
   .cal-day.selected .cal-dot.green { background: rgba(0,0,0,.4); }
+  .cal-day.selected .cal-dot.blue  { background: rgba(0,0,0,.35); }
   .cal-day.today.selected { color: #0B1929 !important; }
 
   .record-table { width: 100%; border-collapse: collapse; }
@@ -2210,54 +2212,47 @@ function renderCalendar() {
 
   titleEl.textContent = MONTHS_TR[calMonth] + ' ' + calYear;
 
-  // Bu ayda mesai kayıtlı günler (amber nokta)
   const monthPrefix = calYear + '-' + pad(calMonth + 1);
-  const recordDays = new Set(
-    state.records
-      .filter(r => r && r.date && r.date.startsWith(monthPrefix))
-      .map(r => r.date)
-  );
 
-  // İzin/ekstra mesai kayıtlı günler (yeşil nokta)
-  var izinRecs  = [];
-  var mesaiRecs = [];
-  try { izinRecs  = JSON.parse(localStorage.getItem('mesai_izin_records')  || '[]'); } catch(e) {}
-  try { mesaiRecs = JSON.parse(localStorage.getItem('mesai_extra_records') || '[]'); } catch(e) {}
-  const trackingDays = new Set(
-    [...izinRecs, ...mesaiRecs]
-      .filter(r => r && r.date && r.date.startsWith(monthPrefix))
-      .map(r => r.date)
+  // Bu aya ait tüm mesai kayıtlarını tarih bazında grupla
+  const recordsByDate = {};
+  state.records
+    .filter(r => r && r.date && r.date.startsWith(monthPrefix))
+    .forEach(r => {
+      if (!recordsByDate[r.date]) recordsByDate[r.date] = [];
+      recordsByDate[r.date].push(r);
+    });
+
+  // İzin kayıtlı günler
+  var izinRecs = [];
+  try { izinRecs = JSON.parse(localStorage.getItem('mesai_izin_records') || '[]'); } catch(e) {}
+  const izinDays = new Set(
+    izinRecs.filter(r => r && r.date && r.date.startsWith(monthPrefix)).map(r => r.date)
   );
 
   const today = dateKey();
   const firstDay = new Date(calYear, calMonth, 1);
-  // Pazartesi=0 düzenine çevir (JS'de 0=Pazar)
-  let startDow = firstDay.getDay(); // 0=Paz,1=Pzt...
-  startDow = (startDow === 0) ? 6 : startDow - 1; // Pzt=0,...,Paz=6
+  let startDow = firstDay.getDay();
+  startDow = (startDow === 0) ? 6 : startDow - 1;
 
-  const daysInMonth  = new Date(calYear, calMonth + 1, 0).getDate();
-  const daysInPrev   = new Date(calYear, calMonth, 0).getDate();
-  const totalCells   = Math.ceil((startDow + daysInMonth) / 7) * 7;
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+  const daysInPrev  = new Date(calYear, calMonth, 0).getDate();
+  const totalCells  = Math.ceil((startDow + daysInMonth) / 7) * 7;
 
   let html = '';
   for (let i = 0; i < totalCells; i++) {
     let day, dateStr, cls = 'cal-day';
     if (i < startDow) {
-      // Önceki ay
       day = daysInPrev - startDow + i + 1;
       const m = calMonth === 0 ? 12 : calMonth;
       const y = calMonth === 0 ? calYear - 1 : calYear;
       dateStr = y + '-' + pad(m) + '-' + pad(day);
       cls += ' other-month';
     } else if (i < startDow + daysInMonth) {
-      // Bu ay
       day = i - startDow + 1;
       dateStr = calYear + '-' + pad(calMonth + 1) + '-' + pad(day);
       if (dateStr === today) cls += ' today';
-      if (recordDays.has(dateStr)) cls += ' has-record';
-      if (trackingDays.has(dateStr)) cls += ' has-tracking';
     } else {
-      // Sonraki ay
       day = i - startDow - daysInMonth + 1;
       const m = calMonth === 11 ? 1 : calMonth + 2;
       const y = calMonth === 11 ? calYear + 1 : calYear;
@@ -2266,19 +2261,42 @@ function renderCalendar() {
     }
     if (dateStr === calSelectedDate) cls += ' selected';
     const clickable = cls.includes('other-month') ? '' : `onclick="calSelectDay('${dateStr}')"`;
-    // Nokta(lar)
+
+    // Nokta rengi belirle
     let dotsHtml = '';
     if (!cls.includes('other-month')) {
-      const hasMesai    = recordDays.has(dateStr);
-      const hasTracking = trackingDays.has(dateStr);
-      if (hasMesai || hasTracking) {
-        dotsHtml = '<div class="cal-dots">' +
-          (hasMesai    ? '<span class="cal-dot amber"></span>' : '') +
-          (hasTracking ? '<span class="cal-dot green"></span>' : '') +
-          '</div>';
-      } else {
-        dotsHtml = '<div class="cal-dots"></div>';
+      const dayRecs = (recordsByDate[dateStr] || []).sort((a,b) => (a.ts||0)-(b.ts||0));
+      const hasIzin = izinDays.has(dateStr);
+
+      // Net mesai hesapla
+      let workMs = 0, breakMs = 0, lastIn = null, lastBreakStart = null;
+      dayRecs.forEach(r => {
+        if (r.type === 'giris')    { lastIn = r.ts; }
+        if (r.type === 'cikis')    { if (lastIn) { workMs += r.ts - lastIn; lastIn = null; } }
+        if (r.type === 'mola-bas') { lastBreakStart = r.ts; }
+        if (r.type === 'mola-bit') { if (lastBreakStart) { breakMs += r.ts - lastBreakStart; lastBreakStart = null; } }
+      });
+      const netMin = Math.floor(Math.max(0, workMs - breakMs) / 60000);
+      const hasWork = workMs > 0 || dayRecs.some(r => r.type === 'giris');
+
+      let dotClass = '';
+      if (hasWork) {
+        // Hedefi çek
+        const dp = dateStr.split('-');
+        const dow = new Date(parseInt(dp[0]), parseInt(dp[1])-1, parseInt(dp[2])).getDay();
+        const goalMin = (typeof getTargetMinutesForDay === 'function') ? getTargetMinutesForDay(dow) : null;
+        if (goalMin && netMin >= goalMin) {
+          dotClass = 'green';   // hedef tamamlandı
+        } else {
+          dotClass = 'amber';   // kısmen tamamlandı
+        }
+      } else if (hasIzin) {
+        dotClass = 'blue';      // sadece izin, log yok
       }
+
+      dotsHtml = dotClass
+        ? '<div class="cal-dots"><span class="cal-dot ' + dotClass + '"></span></div>'
+        : '<div class="cal-dots"></div>';
     }
     html += `<div class="${cls}" ${clickable}>${day}${dotsHtml}</div>`;
   }
@@ -5190,6 +5208,853 @@ document.addEventListener('click', function(e) {
     window._achBtnClickCount = 0;
   }
 }, true);
+</script><!-- ══ OFİS KOŞUCUSU — FAB BUTON ══ -->
+<button onclick="openGameHub()" style="
+  position:fixed; bottom:1.5rem; left:1.5rem; z-index:8000;
+  width:52px; height:52px; border-radius:50%;
+  background:var(--panel); border:1px solid var(--border);
+  color:var(--text); font-size:1.4rem;
+  cursor:pointer; display:flex; align-items:center; justify-content:center;
+  box-shadow:0 4px 16px rgba(0,0,0,.4);
+  transition:transform .15s, box-shadow .15s;
+" onmouseenter="this.style.transform='scale(1.1)'" onmouseleave="this.style.transform='scale(1)'">
+  <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <line x1="6" y1="12" x2="6" y2="16"/><line x1="4" y1="14" x2="8" y2="14"/>
+    <circle cx="17" cy="12" r="1" fill="currentColor" stroke="none"/>
+    <circle cx="19" cy="14" r="1" fill="currentColor" stroke="none"/>
+    <path d="M6 9H4.5a2 2 0 0 0-1.97 1.67L2 13.5A5 5 0 0 0 7 19h10a5 5 0 0 0 5-5.5l-.53-2.83A2 2 0 0 0 19.5 9H18"/>
+    <path d="M9 9h6"/>
+  </svg>
+</button>
+
+<!-- ══ OYUN MERKEZİ — MODAL ══ -->
+<div id="game-hub-overlay" onclick="if(event.target===this)closeGameHub()" style="
+  display:none; position:fixed; inset:0; z-index:9500;
+  background:rgba(0,0,0,.82); align-items:center; justify-content:center;
+">
+  <div style="
+    background:var(--bg); border:1px solid var(--border); border-radius:20px;
+    width:min(440px,94vw); box-shadow:0 24px 64px rgba(0,0,0,.7); overflow:hidden;
+  ">
+    <!-- Başlık -->
+    <div style="
+      padding:1.1rem 1.25rem; border-bottom:1px solid var(--border);
+      display:flex; align-items:center; justify-content:space-between;
+    ">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--amber)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="6" y1="12" x2="6" y2="16"/><line x1="4" y1="14" x2="8" y2="14"/>
+          <circle cx="17" cy="12" r="1" fill="var(--amber)" stroke="none"/>
+          <circle cx="19" cy="14" r="1" fill="var(--amber)" stroke="none"/>
+          <path d="M6 9H4.5a2 2 0 0 0-1.97 1.67L2 13.5A5 5 0 0 0 7 19h10a5 5 0 0 0 5-5.5l-.53-2.83A2 2 0 0 0 19.5 9H18"/>
+          <path d="M9 9h6"/>
+        </svg>
+        <div>
+          <div style="font-weight:700; font-size:.98rem;">Oyun Merkezi</div>
+          <div style="font-size:.7rem; color:var(--muted);">Mesai sıkıntısına ilaç</div>
+        </div>
+      </div>
+      <button onclick="closeGameHub()" style="
+        background:none; border:1px solid var(--border); border-radius:8px;
+        color:var(--muted); width:32px; height:32px; cursor:pointer; font-size:.9rem;
+      ">✕</button>
+    </div>
+
+    <!-- Oyun Listesi -->
+    <div style="padding:1rem;">
+
+      <!-- Ofis Kaçışı -->
+      <div onclick="closeGameHub();openRunnerGame();" style="
+        display:flex; align-items:center; gap:14px;
+        padding:1rem 1.1rem; border-radius:14px; border:1px solid var(--border);
+        background:var(--panel); cursor:pointer; margin-bottom:.75rem;
+        transition:border-color .15s, background .15s;
+      "
+      onmouseenter="this.style.borderColor='var(--amber)';this.style.background='var(--hover, rgba(255,180,0,.06))'"
+      onmouseleave="this.style.borderColor='var(--border)';this.style.background='var(--panel)'">
+        <div style="
+          width:52px; height:52px; border-radius:12px; flex-shrink:0;
+          background:linear-gradient(135deg,#1a3a5c,#0b1929);
+          display:flex; align-items:center; justify-content:center; font-size:1.8rem;
+        ">🏃</div>
+        <div style="flex:1; min-width:0;">
+          <div style="font-weight:700; font-size:.93rem; margin-bottom:3px;">Ofis Kaçışı</div>
+          <div style="font-size:.75rem; color:var(--muted); line-height:1.5;">Toplantılardan kaç, e-postalardan zıpla!<br>Boşluk tuşu veya ekrana dokun.</div>
+        </div>
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>
+
+      <!-- Yakında gelecek -->
+      <div style="
+        display:flex; align-items:center; gap:14px;
+        padding:1rem 1.1rem; border-radius:14px; border:1px dashed var(--border);
+        opacity:.45; user-select:none;
+      ">
+        <div style="
+          width:52px; height:52px; border-radius:12px; flex-shrink:0;
+          background:var(--panel);
+          display:flex; align-items:center; justify-content:center;
+        ">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        </div>
+        <div style="flex:1;">
+          <div style="font-weight:700; font-size:.93rem; margin-bottom:3px;">Yakında…</div>
+          <div style="font-size:.75rem; color:var(--muted);">Yeni oyunlar yolda.</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ══ OFİS KOŞUCUSU — MODAL ══ -->
+<div id="runner-overlay" style="
+  display:none; position:fixed; inset:0; z-index:10000;
+  background:rgba(0,0,0,.85); align-items:center; justify-content:center;
+">
+  <div style="
+    background:var(--bg); border:1px solid var(--border); border-radius:20px;
+    width:min(520px, 96vw); overflow:hidden;
+    box-shadow:0 24px 64px rgba(0,0,0,.7);
+  ">
+    <!-- Başlık -->
+    <div style="
+      padding:1rem 1.25rem; border-bottom:1px solid var(--border);
+      display:flex; align-items:center; justify-content:space-between;
+    ">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span style="font-size:1.3rem;">🏃</span>
+        <div>
+          <div style="font-weight:700; font-size:.95rem;">Ofis Koşucusu</div>
+          <div style="font-size:.72rem; color:var(--muted);">Boşluk / ↑ / Ekrana dokun = Zıpla</div>
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px;">
+        <div style="text-align:right;">
+          <div style="font-size:.62rem; color:var(--muted); text-transform:uppercase; letter-spacing:1px;">🏆 En İyi</div>
+          <div id="runner-best" style="font-size:.95rem; font-weight:700; color:var(--amber);">0</div>
+        </div>
+        <button onclick="closeRunnerGame()" style="
+          background:none; border:1px solid var(--border); border-radius:8px;
+          color:var(--muted); width:32px; height:32px; cursor:pointer; font-size:.9rem;
+        ">✕</button>
+      </div>
+    </div>
+
+    <!-- Canvas -->
+    <div style="position:relative; background:#0B1929; line-height:0;">
+      <canvas id="runner-canvas" style="display:block; width:100%; cursor:pointer; touch-action:none;"></canvas>
+      <!-- Overlay ekranı -->
+      <div id="runner-screen" style="
+        position:absolute; inset:0; display:flex; flex-direction:column;
+        align-items:center; justify-content:center; gap:10px;
+        background:rgba(11,25,41,.88);
+      ">
+        <div id="runner-screen-icon" style="font-size:2.8rem; line-height:1;">🏃</div>
+        <div id="runner-screen-title" style="font-size:1.05rem; font-weight:700; color:var(--text);">Ofis Koşucusu</div>
+        <div id="runner-screen-sub" style="font-size:.78rem; color:var(--muted); text-align:center; padding:0 2rem; line-height:1.6;"></div>
+        <button id="runner-start-btn" onclick="runnerStart()" style="
+          margin-top:4px; background:var(--amber); border:none; border-radius:10px;
+          color:#0B1929; font-weight:700; font-size:.88rem; padding:11px 32px; cursor:pointer;
+          transition: opacity .15s;
+        ">Başla</button>
+      </div>
+    </div>
+
+    <!-- Skor çubuğu -->
+    <div style="
+      padding:.7rem 1.25rem; border-top:1px solid var(--border);
+      display:flex; align-items:center; justify-content:space-between;
+    ">
+      <div>
+        <div style="font-size:.62rem; color:var(--muted); text-transform:uppercase; letter-spacing:1px;">Skor</div>
+        <div id="runner-score-display" style="font-size:1.15rem; font-weight:700; color:var(--text); font-variant-numeric:tabular-nums;">0</div>
+      </div>
+      <div style="display:flex; gap:4px; align-items:center;" id="runner-lives-display"></div>
+      <div style="text-align:right;">
+        <div style="font-size:.62rem; color:var(--muted); text-transform:uppercase; letter-spacing:1px;">Mesafe</div>
+        <div id="runner-dist-display" style="font-size:.9rem; font-weight:700; color:var(--amber); font-variant-numeric:tabular-nums;">0m</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  // ─── Canvas ve boyut ────────────────────────────────────────────
+  const CW = 520, CH = 200;   // mantıksal boyut
+  const GROUND_Y = CH - 32;   // zemin Y koordinatı (üst kenar)
+
+  // ─── Fizik sabitleri ────────────────────────────────────────────
+  const GRAVITY      = 0.9;    // yeterince hızlı iniş
+  const JUMP_V       = -10.5;  // ~61px zirve → üçlü engeli atlar, hava engeli sınırının altında
+  const BASE_SPEED   = 4.2;
+  const MAX_SPEED    = 9.0;
+
+  // ─── Engeller ───────────────────────────────────────────────────
+  const OBS_TYPES = [
+    { emoji:'📋', w:28, h:34, label:'Toplantı'    },
+    { emoji:'📧', w:30, h:26, label:'E-posta'     },
+    { emoji:'☕', w:24, h:28, label:'Kahve'       },
+    { emoji:'💻', w:34, h:26, label:'Güncelleme'  },
+    { emoji:'📞', w:26, h:30, label:'Çağrı'       },
+    { emoji:'📁', w:28, h:24, label:'Dosya Yığını'},
+    { emoji:'🖨️', w:36, h:30, label:'Yazıcı'      },
+    { emoji:'📎', w:22, h:28, label:'Ataç'        },
+    { emoji:'🗂️', w:32, h:28, label:'Klasör'      },
+    { emoji:'🖥️', w:36, h:32, label:'Bilgisayar'  },
+    { emoji:'📺', w:34, h:30, label:'Ekran'       },
+    { emoji:'🔔', w:24, h:28, label:'Bildirim'    },
+    { emoji:'📝', w:26, h:28, label:'Rapor'       },
+    { emoji:'🗑️', w:26, h:30, label:'Çöp Kutusu'  },
+    { emoji:'📌', w:22, h:26, label:'Hatırlatıcı' },
+  ];
+
+  // ─── Durum ──────────────────────────────────────────────────────
+  let cvs, ctx;
+  let running = false;
+  let raf = null;
+  let bestScore = 0;
+
+  // Oyun state
+  let player, obstacles, particles;
+  let score, dist, speed, frameN;
+  let lives, invFrames;
+  let lastObstacleFrame, minGap;
+  let bgOffset1, bgOffset2;   // parallax katmanları
+
+  // ─── Başlatma ───────────────────────────────────────────────────
+  function init() {
+    cvs = document.getElementById('runner-canvas');
+    cvs.width  = CW;
+    cvs.height = CH;
+    ctx = cvs.getContext('2d');
+
+    // Oyuncu: x,y sol-alt köşesi, w,h boyut
+    player = {
+      x: 72, y: GROUND_Y,
+      w: 32, h: 38,
+      vy: 0,
+      onGround: true,
+      animFrame: 0, animTimer: 0,
+    };
+
+    obstacles  = [];
+    particles  = [];
+    score      = 0;
+    dist       = 0;
+    speed      = BASE_SPEED;
+    frameN     = 0;
+    lives      = 3;
+    invFrames  = 0;
+    lastObstacleFrame = 80;   // ilk engelden önce biraz boşluk
+    minGap     = 120;
+    bgOffset1  = 0;
+    bgOffset2  = 0;
+
+    updateLivesUI();
+    updateScoreUI();
+  }
+
+  // ─── Ana döngü ──────────────────────────────────────────────────
+  function loop() {
+    if (!running) return;
+    update();
+    draw();
+    raf = requestAnimationFrame(loop);
+  }
+
+  function update() {
+    frameN++;
+
+    // ── Kademeli zorluk (mesafeye göre) ──
+    // dist piksel cinsinden, ~10px = 1m
+    const mtr = Math.floor(dist / 10);
+
+    // Hız: 3 aşamalı eğri — başta kademeli, ortada ivmeli, sonda plato
+    if (mtr < 300) {
+      speed = BASE_SPEED + (mtr / 300) * 1.2;          // 4.2 → 5.4
+    } else if (mtr < 1000) {
+      speed = 5.4 + ((mtr - 300) / 700) * 2.2;        // 5.4 → 7.6
+    } else {
+      speed = Math.min(MAX_SPEED, 7.6 + ((mtr - 1000) / 800) * 1.4); // 7.6 → 9.0
+    }
+
+    // dist güncelle
+    dist += speed;
+
+    // Parallax offset
+    bgOffset1 = (bgOffset1 + speed * 0.3) % CW;
+    bgOffset2 = (bgOffset2 + speed * 0.6) % CW;
+
+    // ── Oyuncu fiziği ──
+    if (!player.onGround) {
+      player.vy += GRAVITY;
+      player.y  += player.vy;
+      if (player.y >= GROUND_Y) {
+        player.y        = GROUND_Y;
+        player.vy       = 0;
+        player.onGround = true;
+      }
+    }
+
+    // Koşu animasyonu
+    player.animTimer++;
+    const animSpeed = Math.max(4, 10 - Math.floor(speed));
+    if (player.animTimer >= animSpeed) {
+      player.animFrame = (player.animFrame + 1) % 2;
+      player.animTimer = 0;
+    }
+
+    // ── Hasar koruması ──
+    if (invFrames > 0) invFrames--;
+
+    // ── Engel üretimi (mesafeye göre kademeli zorluk) ──
+    const meter = Math.floor(dist / 10);
+
+    // Engeller arası minimum boşluk (frame cinsinden) — azaldıkça daha sık gelir
+    let dynGap;
+    if (meter < 200)        dynGap = 140;           // başlangıç: seyrek
+    else if (meter < 500)   dynGap = 120;           // biraz sıklaşır
+    else if (meter < 1000)  dynGap = 100;           // orta
+    else if (meter < 1500)  dynGap = 85;            // yoğunlaşır
+    else                    dynGap = 70;            // ileri seviye: yoğun
+
+    if (frameN - lastObstacleFrame >= dynGap) {
+      spawnObstacle(meter);
+      lastObstacleFrame = frameN;
+    }
+
+    // ── Engelleri güncelle ──
+    for (let i = obstacles.length - 1; i >= 0; i--) {
+      const o = obstacles[i];
+      o.x -= speed;
+      if (o.x + o.w < -20) { obstacles.splice(i, 1); score += 10; continue; }
+
+      // Çarpışma — sadece invincible değilse
+      if (invFrames === 0 && hitTest(player, o)) {
+        obstacles.splice(i, 1);
+        lives--;
+        invFrames = 60;   // 1 saniyelik koruma
+        spawnHitParticles(o.x + o.w / 2, o.y);
+        updateLivesUI();
+        if (lives <= 0) { endGame(); return; }
+      }
+    }
+
+    // ── Partiküller ──
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.x  += p.vx;
+      p.y  += p.vy;
+      p.vy += 0.18;
+      p.life--;
+      if (p.life <= 0) particles.splice(i, 1);
+    }
+
+    score++;
+    updateScoreUI();
+  }
+
+  // ─── Çarpışma kutusu (sıkıştırılmış) ───────────────────────────
+  function hitTest(p, o) {
+    const mx = 8, my = 6;  // hitbox küçültme
+    const pl = p.x       + mx;
+    const pr = p.x + p.w - mx;
+    const pt = p.y - p.h + my;
+    const pb = p.y       - my;
+    const ol = o.x       + mx;
+    const or_ = o.x + o.w - mx;
+    const ot = o.y       + my;
+    const ob_ = o.y + o.h - my;
+    return pl < or_ && pr > ol && pt < ob_ && pb > ot;
+  }
+
+  // ─── Engel üretme ───────────────────────────────────────────────
+  // Her engelin "tipi": 'ground' | 'air' | 'chain'
+  // ground : zeminde duruyor, zıplayarak geçilir
+  // air    : havada, eğilerek geçilir (duck — ileride eklenebilir, şimdilik altından koşulur)
+  // chain  : arka arkaya 2-3 yer engeli, kısa boşluklarla
+
+  // Hava engeli için Y pozisyonu: oyuncunun başı hizası
+  const AIR_Y = GROUND_Y - 38 - 14;  // 38 = player.h, sabit değer kullan
+
+  function spawnObstacle(meter) {
+    const roll = Math.random();
+
+    // ── Aşama 1: 0-200m — sadece tekil yer engelleri ──
+    if (meter < 200) {
+      spawnGroundObstacle(CW + 10);
+      return;
+    }
+
+    // ── Aşama 2: 200-500m — zincir (2'li) giriyor, hava yok ──
+    if (meter < 500) {
+      const chainChance = 0.15 + (meter - 200) / 300 * 0.15; // 15%→30%
+      if (roll < chainChance) {
+        spawnChainObstacles(2, 2);   // sadece 2'li
+      } else {
+        spawnGroundObstacle(CW + 10);
+      }
+      return;
+    }
+
+    // ── Aşama 3: 500-1000m — hava engeli giriyor, zincir 2-3'lü ──
+    if (meter < 1000) {
+      const t = (meter - 500) / 500;          // 0→1
+      const airChance   = 0.08 + t * 0.12;   // 8%→20%
+      const chainChance = 0.20 + t * 0.10;   // 20%→30%
+      if (roll < airChance) {
+        spawnAirObstacle();
+      } else if (roll < airChance + chainChance) {
+        spawnChainObstacles(2, 3);             // 2-3'lü
+      } else {
+        spawnGroundObstacle(CW + 10);
+      }
+      return;
+    }
+
+    // ── Aşama 4: 1000-1500m — karma kombinasyonlar, zincir 2-3'lü, hava %25 ──
+    if (meter < 1500) {
+      const t = (meter - 1000) / 500;         // 0→1
+      const airChance   = 0.20 + t * 0.08;   // 20%→28%
+      const chainChance = 0.28 + t * 0.07;   // 28%→35%
+      const mixChance   = t * 0.10;           // 0%→10% (hava + yer karışık)
+      if (roll < airChance) {
+        spawnAirObstacle();
+      } else if (roll < airChance + mixChance) {
+        spawnMixedObstacles();                 // hava + yer aynı anda
+      } else if (roll < airChance + mixChance + chainChance) {
+        spawnChainObstacles(2, 3);
+      } else {
+        spawnGroundObstacle(CW + 10);
+      }
+      return;
+    }
+
+    // ── Aşama 5: 1500m+ — maksimum kaos ──
+    {
+      const airChance   = 0.28;
+      const chainChance = 0.32;
+      const mixChance   = 0.15;
+      if (roll < airChance) {
+        spawnAirObstacle();
+      } else if (roll < airChance + mixChance) {
+        spawnMixedObstacles();
+      } else if (roll < airChance + mixChance + chainChance) {
+        spawnChainObstacles(2, 3);             // max 3'lü zincir
+      } else {
+        spawnGroundObstacle(CW + 10);
+      }
+    }
+  }
+
+  function spawnGroundObstacle(x) {
+    const t = OBS_TYPES[Math.floor(Math.random() * OBS_TYPES.length)];
+    obstacles.push({
+      x,
+      y: GROUND_Y - t.h,
+      w: t.w, h: t.h,
+      emoji: t.emoji,
+      kind: 'ground',
+    });
+  }
+
+  function spawnAirObstacle() {
+    // Hava engellerini belirli emojilerle sınırla (uçan şeyler mantıklı)
+    const AIR_TYPES = [
+      { emoji:'🔔', w:26, h:26 },
+      { emoji:'📨', w:28, h:22 },
+      { emoji:'💬', w:30, h:26 },
+      { emoji:'⚠️', w:26, h:26 },
+      { emoji:'🚨', w:28, h:28 },
+      { emoji:'📡', w:30, h:28 },
+    ];
+    const t = AIR_TYPES[Math.floor(Math.random() * AIR_TYPES.length)];
+    // Y: oyuncunun max zıplama zirvesinin hemen altında — zıplamak çarpıştırır, altından geçilir
+    // JUMP_V=-10.5, GRAVITY=0.9 → zirve ≈61px → kafa 130-61=69px'e çıkar
+    // airY gap=14 → alt kenar ≈116px > 69px → çarpar ✓
+    const airY = GROUND_Y - 38 - t.h - 14;
+    obstacles.push({
+      x: CW + 10,
+      y: airY,
+      w: t.w, h: t.h,
+      emoji: t.emoji,
+      kind: 'air',
+    });
+  }
+
+  function spawnChainObstacles(minCount, maxCount) {
+    const count = minCount + Math.floor(Math.random() * (maxCount - minCount + 1));
+    const gap   = 16 + Math.floor(Math.random() * 14); // engeller arası boşluk
+    let   x     = CW + 10;
+    for (let i = 0; i < count; i++) {
+      const t = OBS_TYPES[Math.floor(Math.random() * OBS_TYPES.length)];
+      obstacles.push({
+        x,
+        y: GROUND_Y - t.h,
+        w: t.w, h: t.h,
+        emoji: t.emoji,
+        kind: 'chain',
+        chainIdx: i,
+      });
+      x += t.w + gap;
+    }
+  }
+
+  // Karma: hava engeli önde, yer engeli arkada — önce altından geç, sonra üstünden atla
+  function spawnMixedObstacles() {
+    const AIR_TYPES = [
+      { emoji:'🔔', w:26, h:26 },
+      { emoji:'📨', w:28, h:22 },
+      { emoji:'💬', w:30, h:26 },
+      { emoji:'⚠️', w:26, h:26 },
+      { emoji:'🚨', w:28, h:28 },
+      { emoji:'📡', w:30, h:28 },
+    ];
+    const t    = AIR_TYPES[Math.floor(Math.random() * AIR_TYPES.length)];
+    const airY = GROUND_Y - 38 - t.h - 14;
+    // Hava engeli önce geliyor (ekranın sağından ilk çıkan)
+    obstacles.push({
+      x: CW + 10,
+      y: airY,
+      w: t.w, h: t.h,
+      emoji: t.emoji,
+      kind: 'air',
+    });
+    // Yer engeli arkadan geliyor — aralarında 90-130px boşluk
+    const gap = 90 + Math.floor(Math.random() * 40);
+    spawnGroundObstacle(CW + 10 + t.w + gap);
+  }
+
+  // ─── Çarpışma partikülleri ──────────────────────────────────────
+  function spawnHitParticles(x, y) {
+    for (let i = 0; i < 10; i++) {
+      particles.push({
+        x, y,
+        vx: (Math.random() - 0.5) * 4,
+        vy: -Math.random() * 4 - 1,
+        life: 25 + Math.floor(Math.random() * 15),
+        maxLife: 40,
+        r: 2 + Math.random() * 3,
+        color: Math.random() > 0.5 ? '#F5A623' : '#E05C5C',
+      });
+    }
+  }
+
+  // ─── Çizim ──────────────────────────────────────────────────────
+  function draw() {
+    ctx.clearRect(0, 0, CW, CH);
+
+    drawBackground();
+    drawGround();
+    drawObstacles();
+    drawPlayer();
+    drawParticles();
+    drawHUD();
+  }
+
+  function drawBackground() {
+    // Gece gökyüzü gradyanı
+    const grad = ctx.createLinearGradient(0, 0, 0, GROUND_Y);
+    grad.addColorStop(0,   '#060E1A');
+    grad.addColorStop(1,   '#0D2038');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, CW, GROUND_Y);
+
+    // Yıldızlar (statik, küçük)
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    const stars = [[30,15],[90,8],[160,20],[220,6],[310,18],[380,11],[450,22],[500,9]];
+    stars.forEach(([sx,sy]) => { ctx.fillRect(sx, sy, 1.5, 1.5); });
+
+    // Uzak binalar (yavaş parallax)
+    drawBuildingLayer(bgOffset1, 0.15, 35, 55, '#0A1E30', 0.12);
+
+    // Yakın binalar (hızlı parallax)
+    drawBuildingLayer(bgOffset2, 0.35, 55, 85, '#0D2540', 0.2);
+  }
+
+  function drawBuildingLayer(offset, _s, minH, maxH, color, winAlpha) {
+    // Deterministik bina dizisi
+    const seed = [60,45,80,50,70,55,75,48,65,58];
+    const wSeed = [50,40,60,45,55,42,58,44,52,48];
+    ctx.fillStyle = color;
+    for (let i = 0; i < 10; i++) {
+      const bw = wSeed[i];
+      const bh = minH + (seed[i] % (maxH - minH));
+      const bx = ((i * 55 + CW - offset) % (CW + 60)) - 10;
+      const by = GROUND_Y - bh;
+      ctx.fillRect(bx, by, bw, bh);
+      // Pencereler
+      ctx.fillStyle = `rgba(245,166,35,${winAlpha})`;
+      for (let wy = by + 6; wy < GROUND_Y - 6; wy += 12) {
+        for (let wx = bx + 5; wx < bx + bw - 10; wx += 10) {
+          if ((frameN + i + wx) % 7 !== 0)   // bazı pencereler kapalı
+            ctx.fillRect(wx, wy, 5, 7);
+        }
+      }
+      ctx.fillStyle = color;
+    }
+  }
+
+  function drawGround() {
+    // Zemin dolgusu
+    ctx.fillStyle = '#081524';
+    ctx.fillRect(0, GROUND_Y, CW, CH - GROUND_Y);
+
+    // Zemin çizgisi
+    ctx.strokeStyle = '#1E3E5A';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(0, GROUND_Y); ctx.lineTo(CW, GROUND_Y); ctx.stroke();
+
+    // Kaldırım çizgileri (parallax)
+    ctx.strokeStyle = '#152D45';
+    ctx.lineWidth = 1;
+    const off = (frameN * speed * 0.8) % 48;
+    for (let x = -off; x < CW; x += 48) {
+      ctx.beginPath(); ctx.moveTo(x, GROUND_Y + 8); ctx.lineTo(x + 28, GROUND_Y + 8); ctx.stroke();
+    }
+  }
+
+  function drawPlayer() {
+    const cx = player.x + player.w / 2;
+    const cy = player.y - player.h / 2;
+
+    // Invincibility: yanıp sönme efekti
+    if (invFrames > 0 && Math.floor(invFrames / 5) % 2 === 0) return;
+
+    // Gölge
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.beginPath();
+    ctx.ellipse(cx, GROUND_Y + 4, player.w * 0.4, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Emoji (yatay ters — sağa koşsun)
+    const runEmojis = ['🏃', '🚶'];
+    const em = player.onGround ? runEmojis[player.animFrame] : '🤸';
+    ctx.save();
+    ctx.scale(-1, 1);
+    drawEmoji(em, -cx, cy, 30);
+    ctx.restore();
+  }
+
+  function drawObstacles() {
+    // Önce zincir bağlantılarını çiz (engellerin altında kalsın)
+    ctx.strokeStyle = 'rgba(245,166,35,0.25)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 4]);
+    const chainObs = obstacles.filter(o => o.kind === 'chain');
+    for (let i = 0; i < chainObs.length - 1; i++) {
+      const a = chainObs[i], b = chainObs[i+1];
+      if (b.chainIdx === a.chainIdx + 1) {
+        const ax = a.x + a.w, ay = a.y + a.h / 2;
+        const bx = b.x,       by = b.y + b.h / 2;
+        ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
+      }
+    }
+    ctx.setLineDash([]);
+
+    obstacles.forEach(o => {
+      const cx = o.x + o.w / 2;
+      const cy = o.y + o.h / 2;
+
+      // Hava engeli: kırmızı parlama halkası
+      if (o.kind === 'air') {
+        const pulse = 0.4 + 0.3 * Math.sin(frameN * 0.15);
+        ctx.strokeStyle = `rgba(224,92,92,${pulse})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(cx, cy, o.w * 0.75, 0, Math.PI * 2);
+        ctx.stroke();
+        // Altında ince çizgi — "buradan geç" ipucu
+        ctx.strokeStyle = `rgba(224,92,92,${pulse * 0.5})`;
+        ctx.lineWidth = 1;
+        ctx.setLineDash([3, 4]);
+        ctx.beginPath();
+        ctx.moveTo(o.x - 2, GROUND_Y);
+        ctx.lineTo(o.x + o.w + 2, GROUND_Y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      // Zincir engeli: hafif amber glow
+      if (o.kind === 'chain') {
+        ctx.fillStyle = 'rgba(245,166,35,0.06)';
+        ctx.fillRect(o.x - 3, o.y - 3, o.w + 6, o.h + 6);
+      }
+
+      // Gölge
+      ctx.fillStyle = 'rgba(0,0,0,0.25)';
+      ctx.beginPath();
+      ctx.ellipse(cx, GROUND_Y + 3, o.w * 0.45, 3.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      drawEmoji(o.emoji, cx, cy, 26);
+    });
+  }
+
+  function drawParticles() {
+    particles.forEach(p => {
+      const alpha = p.life / p.maxLife;
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle   = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+  }
+
+  function drawHUD() {
+    // Hız göstergesi
+    ctx.font         = 'bold 13px system-ui, sans-serif';
+    ctx.textBaseline = 'top';
+    ctx.textAlign    = 'right';
+    ctx.fillStyle    = 'rgba(245,166,35,0.7)';
+    ctx.fillText('×' + (speed / BASE_SPEED).toFixed(1), CW - 10, 10);
+
+    // Hava engeli yaklaşıyorsa "EĞIL!" uyarısı
+    const nearAir = obstacles.find(o => o.kind === 'air' && o.x < CW * 0.55 && o.x > player.x);
+    if (nearAir) {
+      const alpha = Math.min(1, (CW * 0.55 - nearAir.x) / (CW * 0.25));
+      const pulse = 0.6 + 0.4 * Math.sin(frameN * 0.25);
+      ctx.font      = 'bold 14px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = `rgba(224,92,92,${alpha * pulse})`;
+      ctx.fillText('⬇ EĞİL!', CW / 2, 10);
+    }
+  }
+
+  // ─── Emoji yardımcısı ────────────────────────────────────────────
+  function drawEmoji(em, x, y, size) {
+    ctx.font         = size + 'px serif';
+    ctx.textBaseline = 'middle';
+    ctx.textAlign    = 'center';
+    ctx.fillStyle    = '#000'; // reset
+    ctx.fillText(em, x, y);
+  }
+
+  // ─── UI güncellemeleri ───────────────────────────────────────────
+  function updateLivesUI() {
+    const el = document.getElementById('runner-lives-display');
+    if (!el) return;
+    el.innerHTML = [1,2,3].map(i =>
+      `<span style="font-size:1.2rem;opacity:${i<=lives?1:0.18};transition:opacity .2s;">❤️</span>`
+    ).join('');
+  }
+
+  function updateScoreUI() {
+    const se = document.getElementById('runner-score-display');
+    const de = document.getElementById('runner-dist-display');
+    if (se) se.textContent = score;
+    if (de) de.textContent = Math.floor(dist / 10) + 'm';
+  }
+
+  // ─── Oyun başlat / bitir ─────────────────────────────────────────
+  window.runnerStart = function() {
+    document.getElementById('runner-screen').style.display = 'none';
+    init();
+    running = true;
+    cancelAnimationFrame(raf);
+    loop();
+  };
+
+  function endGame() {
+    running = false;
+    cancelAnimationFrame(raf);
+    const isRecord = score > bestScore;
+    if (isRecord) {
+      bestScore = score;
+      document.getElementById('runner-best').textContent = bestScore;
+    }
+    document.getElementById('runner-screen-icon').textContent   = isRecord ? '🏆' : '😓';
+    document.getElementById('runner-screen-title').textContent  = isRecord ? 'Yeni Rekor!' : 'Mesai Bitti!';
+    document.getElementById('runner-screen-sub').innerHTML      =
+      `Skor: <strong style="color:var(--amber)">${score}</strong>&nbsp; · &nbsp;`+
+      `Mesafe: <strong style="color:var(--green)">${Math.floor(dist/10)}m</strong>`+
+      (isRecord ? '<br><span style="color:var(--amber)">🎉 Tebrikler, rekoru kırdın!</span>' :
+                  `<br>En iyi: <strong>${bestScore}</strong>`);
+    document.getElementById('runner-start-btn').textContent     = 'Tekrar Oyna';
+    document.getElementById('runner-screen').style.display      = 'flex';
+  }
+
+  // ─── Zıplama ────────────────────────────────────────────────────
+  function jump() {
+    if (!running) return;
+    if (player && player.onGround) {
+      player.vy       = JUMP_V;
+      player.onGround = false;
+    }
+  }
+
+  // ─── Event listeners ─────────────────────────────────────────────
+  document.addEventListener('keydown', e => {
+    const overlay = document.getElementById('runner-overlay');
+    if (!overlay || overlay.style.display === 'none') return;
+    if (e.code === 'Space' || e.code === 'ArrowUp') {
+      e.preventDefault();
+      jump();
+    }
+  });
+
+  // pointerdown: hem mouse hem touch için anında tetiklenir, 300ms click gecikmesi yok
+  document.addEventListener('pointerdown', e => {
+    if (e.target && e.target.id === 'runner-canvas') {
+      e.preventDefault();
+      jump();
+    }
+  });
+
+  // ─── Modal aç / kapat ────────────────────────────────────────────
+  window.openRunnerGame = function() {
+    const overlay = document.getElementById('runner-overlay');
+    overlay.style.display = 'flex';
+    running = false;
+    cancelAnimationFrame(raf);
+
+    // Canvas'ı ayarla
+    cvs = document.getElementById('runner-canvas');
+    cvs.width  = CW;
+    cvs.height = CH;
+    ctx = cvs.getContext('2d');
+
+    // Başlangıç ekranını ayarla
+    document.getElementById('runner-screen-icon').textContent   = '🏃';
+    document.getElementById('runner-screen-title').textContent  = 'Ofis Koşucusu';
+    document.getElementById('runner-screen-sub').innerHTML      =
+      'Toplantılardan kaç, e-postalardan zıpla!<br>Boşluk tuşu veya ekrana dokun.';
+    document.getElementById('runner-start-btn').textContent     = 'Başla';
+    document.getElementById('runner-best').textContent          = bestScore;
+    document.getElementById('runner-score-display').textContent = '0';
+    document.getElementById('runner-dist-display').textContent  = '0m';
+    document.getElementById('runner-lives-display').innerHTML   = '❤️❤️❤️';
+    document.getElementById('runner-screen').style.display      = 'flex';
+
+    // Arka planı çiz
+    const grad = ctx.createLinearGradient(0, 0, 0, CH);
+    grad.addColorStop(0, '#060E1A');
+    grad.addColorStop(1, '#0D2038');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, CW, CH);
+  };
+
+  window.closeRunnerGame = function() {
+    running = false;
+    cancelAnimationFrame(raf);
+    document.getElementById('runner-overlay').style.display = 'none';
+  };
+
+})();
+
+// ── Oyun Merkezi ─────────────────────────────────────────────────────────────
+function openGameHub() {
+  document.getElementById('game-hub-overlay').style.display = 'flex';
+}
+function closeGameHub() {
+  document.getElementById('game-hub-overlay').style.display = 'none';
+}
 </script>
 
 </body>
