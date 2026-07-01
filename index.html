@@ -220,7 +220,7 @@
     background: var(--panel);
     border: 1px solid var(--border);
     color: var(--muted);
-    margin-bottom: 2rem;
+    margin-bottom: 1.25rem;
   }
   .status-badge .dot {
     width: 7px; height: 7px; border-radius: 50%;
@@ -974,6 +974,19 @@
     </div>
   </button>
   <div style="height:1px;background:var(--border);margin:4px 8px;"></div>
+  <button onclick="openNotifModal()" id="settings-notif-btn" style="
+    width:100%;background:none;border:none;color:var(--text);
+    padding:10px 12px;text-align:left;cursor:pointer;border-radius:8px;
+    font-size:.88rem;display:flex;align-items:center;gap:10px;
+    transition:background .15s;
+  " onmouseover="this.style.background='var(--panel)'" onmouseout="this.style.background='none'">
+    <span style="font-size:1.1rem;">🔔</span>
+    <div>
+      <div style="font-weight:600;">Bildirim Ayarları</div>
+      <div style="font-size:.75rem;color:var(--muted);margin-top:1px;" id="settings-notif-sub">Yükleniyor...</div>
+    </div>
+  </button>
+  <div style="height:1px;background:var(--border);margin:4px 8px;"></div>
   <button onclick="openResetModal()" style="
     width:100%;background:none;border:none;color:var(--red);
     padding:10px 12px;text-align:left;cursor:pointer;border-radius:8px;
@@ -1031,6 +1044,16 @@
       <div class="status-badge" id="work-status-badge">
         <span class="dot"></span>
         <span id="work-status-text">Mesai Başlamadı</span>
+      </div>
+      <div id="exit-estimate-inline" style="
+        display:none; margin-bottom:1.1rem;
+        display:none; text-align:center;
+      ">
+        <div style="font-size:.68rem; text-transform:uppercase; letter-spacing:1.5px; color:var(--muted); margin-bottom:3px;" id="exit-inline-label">Tahmini Çıkış</div>
+        <div style="display:flex; align-items:baseline; justify-content:center; gap:8px; flex-wrap:wrap;">
+          <span id="exit-inline-time" style="font-family:'JetBrains Mono',monospace; font-size:1.35rem; font-weight:700; color:var(--amber);"></span>
+          <span id="exit-inline-remain" style="font-size:.75rem; font-weight:500; color:var(--muted);"></span>
+        </div>
       </div>
 
       <div class="btn-group">
@@ -1928,6 +1951,62 @@ function updateSummary() {
   if (sg) sg.textContent  = toHM(gorevMs);
   if (sn) sn.textContent  = toHM(Math.max(0, workMs - breakMs));
 
+  // ── Tahmini çıkış saati ────────────────────────────────────────────────
+  var exitInline  = document.getElementById('exit-estimate-inline');
+  var exitTimEl   = document.getElementById('exit-inline-time');
+  var exitRemEl   = document.getElementById('exit-inline-remain');
+  if (exitInline && state.isWorking && state.workStart) {
+    exitInline.style.display = 'block';
+    var dow = new Date().getDay();
+    var goalMin = (typeof getTargetMinutesForDay === 'function') ? getTargetMinutesForDay(dow) : null;
+    goalMin = goalMin || 480;
+    var breakTargetMin = 0;
+    var tgt = (typeof getTodayTargets === 'function') ? getTodayTargets() : null;
+    if (tgt && tgt.breakMin) breakTargetMin = tgt.breakMin;
+
+    // İlk giriş zamanı
+    var firstInMs = state.workStart;
+    var todayRecs = typeof sessionRecords === 'function' ? sessionRecords() : [];
+    for (var _i = 0; _i < todayRecs.length; _i++) {
+      if (todayRecs[_i].type === 'giris') { firstInMs = todayRecs[_i].ts; break; }
+    }
+
+    // Şimdiye kadar gerçekleşen mola süresi (devam eden mola dahil)
+    var accruals = getTodayAccruals();
+    var realBreakMs = accruals.pastBreakMs;
+    if (state.isOnBreak && state.breakStart) realBreakMs += Date.now() - state.breakStart;
+
+    // Hesapta kullanılacak mola: gerçek mola ile hedef moladan büyük olan
+    // (hedef moladan az mola yaptıysan hedef kadar sayılır,
+    //  fazla mola yaptıysan gerçek süre çıkışı geciktirir)
+    var effectiveBreakMs = Math.max(realBreakMs, breakTargetMin * 60000);
+
+    var estimatedExitMs = firstInMs + goalMin * 60000 + effectiveBreakMs;
+    var exitDate = new Date(estimatedExitMs);
+    var exitStr = pad(exitDate.getHours()) + ':' + pad(exitDate.getMinutes());
+    if (exitTimEl) exitTimEl.textContent = exitStr;
+    var remainMs = estimatedExitMs - Date.now();
+    if (remainMs > 0) {
+      var remMin = Math.ceil(remainMs / 60000);
+      if (exitTimEl) exitTimEl.style.color = 'var(--amber)';
+      if (exitRemEl) { exitRemEl.textContent = remMin + ' dk kaldı'; exitRemEl.style.color = 'var(--muted)'; }
+    } else {
+      var overMin = Math.floor(-remainMs / 60000);
+      if (exitTimEl) exitTimEl.style.color = 'var(--green)';
+      if (exitRemEl) {
+        exitRemEl.textContent = overMin > 0 ? '+' + overMin + ' dk' : 'Tamamlandı';
+        exitRemEl.style.color = 'var(--green)';
+      }
+      if (!window._goalNotifSent && overMin === 0) {
+        window._goalNotifSent = true;
+        sendNotification('🎯 Hedef Tamamlandı!', goalMin + ' dakikalık mesai hedefine ulaştın.', 'goal');
+      }
+    }
+  } else if (exitInline && !state.isWorking) {
+    exitInline.style.display = 'none';
+    window._goalNotifSent = false;
+  }
+
   // Hedef gösterimi — net mesai ve mola üzerinden %
   var tgt = (typeof getTodayTargets === 'function') ? getTodayTargets() : null;
   var sng = document.getElementById('s-net-goal');
@@ -1956,6 +2035,221 @@ function updateSummary() {
     if (sbg) sbg.style.display = 'none';
   }
 }
+
+// ── BİLDİRİM SİSTEMİ ──────────────────────────────────────────────────────
+function _detectPlatform() {
+  var ua = navigator.userAgent;
+  var isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+  var isSafari = /^((?!chrome|android).)*safari/i.test(ua);
+  var isPWA = window.navigator.standalone === true ||
+              window.matchMedia('(display-mode: standalone)').matches;
+  return { isIOS: isIOS, isSafari: isSafari && !isIOS, isPWA: isPWA,
+           hasNotifAPI: ('Notification' in window) };
+}
+
+function sendNotification(title, body, type) {
+  if (!('Notification' in window)) return;
+  if (Notification.permission !== 'granted') return;
+  if (type) {
+    var s = loadNotifSettings();
+    if (type === 'goal'         && !s.goal)         return;
+    if (type === 'breakWarn15'  && !s.breakWarn15)  return;
+    if (type === 'breakWarn45'  && !s.breakWarn45)  return;
+  }
+  try {
+    new Notification(title, {
+      body: body,
+      icon: document.querySelector('link[rel="apple-touch-icon"]') ?
+            document.querySelector('link[rel="apple-touch-icon"]').href : '',
+      tag: 'lufer-' + (type || Date.now())
+    });
+  } catch(e) {}
+}
+
+function requestNotifPermission() {
+  var p = _detectPlatform();
+
+  if (p.isIOS && !p.isPWA) {
+    showToast('iOS\'ta bildirim için uygulamayı önce Ana Ekrana ekleyin.');
+    return;
+  }
+  if (!p.hasNotifAPI) {
+    showToast('Bu tarayıcı bildirimleri desteklemiyor.');
+    return;
+  }
+  if (Notification.permission === 'granted') {
+    renderNotifModal();
+    return;
+  }
+  if (Notification.permission === 'denied') {
+    showToast('İzin daha önce reddedildi. Tarayıcı adres çubuğundaki 🔒 simgesinden izin verin.');
+    return;
+  }
+  // Hem callback (eski Safari) hem Promise (modern Chrome) destekli
+  var result = Notification.requestPermission(function(perm) {
+    renderNotifModal();
+    if (perm === 'granted') {
+      setTimeout(function() {
+        sendNotification('🔔 Bildirimler Açıldı', 'Bildirimler başarıyla etkinleştirildi!');
+      }, 500);
+    }
+  });
+  if (result && typeof result.then === 'function') {
+    result.then(function(perm) {
+      renderNotifModal();
+      if (perm === 'granted') {
+        setTimeout(function() {
+          sendNotification('🔔 Bildirimler Açıldı', 'Bildirimler başarıyla etkinleştirildi!');
+        }, 500);
+      } else if (perm === 'denied') {
+        showToast('Bildirim izni reddedildi.');
+      }
+    });
+  }
+}
+
+// ── BİLDİRİM AYARLARI MODAL ────────────────────────────────────────────────
+function openNotifModal() {
+  var sp = document.getElementById('settings-panel');
+  if (sp) sp.style.display = 'none';
+  document.getElementById('notif-overlay').style.display = 'flex';
+  renderNotifModal();
+  // Modal açıkken permission değişimini yakala (izin verince anında güncelle)
+  if (window._notifPollTimer) clearInterval(window._notifPollTimer);
+  window._notifPermCache = ('Notification' in window) ? Notification.permission : 'unsupported';
+  window._notifPollTimer = setInterval(function() {
+    if (!('Notification' in window)) return;
+    var current = Notification.permission;
+    if (current !== window._notifPermCache) {
+      window._notifPermCache = current;
+      renderNotifModal();
+      updateSettingsNotifSub();
+    }
+  }, 500);
+}
+
+function closeNotifModal() {
+  document.getElementById('notif-overlay').style.display = 'none';
+  if (window._notifPollTimer) { clearInterval(window._notifPollTimer); window._notifPollTimer = null; }
+}
+
+function loadNotifSettings() {
+  try {
+    return JSON.parse(localStorage.getItem('lufer_notif_settings') || 'null')
+      || { goal: true, breakWarn15: true, breakWarn45: true };
+  } catch(e) {
+    return { goal: true, breakWarn15: true, breakWarn45: true };
+  }
+}
+
+function saveNotifSettings() {
+  var s = {
+    goal:       document.getElementById('notif-toggle-goal').checked,
+    breakWarn15: document.getElementById('notif-toggle-break15').checked,
+    breakWarn45: document.getElementById('notif-toggle-break45').checked
+  };
+  try { localStorage.setItem('lufer_notif_settings', JSON.stringify(s)); } catch(e) {}
+  renderNotifModal();
+}
+
+function _setSlider(sliderId, checked) {
+  var el = document.getElementById(sliderId);
+  if (!el) return;
+  el.style.background = checked ? 'var(--green)' : 'var(--border)';
+  el.style.setProperty('--tw', checked ? '18px' : '2px');
+  // Pseudo-element yerine after ile simüle edilmiş; renk yeterli görsel geri bildirim
+}
+
+function renderNotifModal() {
+  var p    = _detectPlatform();
+  var perm = p.hasNotifAPI ? Notification.permission : 'unsupported';
+  var permLabel = document.getElementById('notif-perm-label');
+  var permSub   = document.getElementById('notif-perm-sub');
+  var permBtn   = document.getElementById('notif-perm-btn');
+
+  // iOS Safari — PWA değilse bildirim API'si yok
+  if (p.isIOS && !p.isPWA) {
+    if (permLabel) permLabel.textContent = '📱 iOS Safari';
+    if (permSub)   permSub.textContent   = 'Safari\'de bildirim için Ana Ekrana ekleyin: Paylaş → Ana Ekrana Ekle. Uygulama açıldığında bildirimler aktif olur.';
+    if (permBtn)   { permBtn.textContent = 'Ana Ekrana Ekle'; permBtn.disabled = false; permBtn.style.opacity = '1';
+                     permBtn.style.background = 'var(--amber)'; permBtn.onclick = function() {
+                       showToast('Safari\'de Paylaş butonuna → "Ana Ekrana Ekle" seçeneğine dokunun.');
+                     }; }
+  } else if (perm === 'granted') {
+    if (permLabel) permLabel.textContent = '✅ Bildirim İzni';
+    if (permSub)   permSub.textContent   = 'Bildirimler aktif, gönderim hazır.';
+    if (permBtn)   { permBtn.textContent = 'İzin Verildi ✓'; permBtn.disabled = true;
+                     permBtn.style.opacity = '.5'; permBtn.style.background = 'var(--green)'; }
+  } else if (perm === 'denied') {
+    if (permLabel) permLabel.textContent = '🚫 İzin Reddedildi';
+    if (permSub)   permSub.textContent   = 'Adres çubuğundaki 🔒 simgesine tıklayıp Bildirimler iznini "İzin Ver" yapın, sonra sayfayı yenileyin.';
+    if (permBtn)   { permBtn.textContent = 'Engellendi'; permBtn.disabled = true; permBtn.style.opacity = '.5'; }
+  } else if (perm === 'unsupported') {
+    if (permLabel) permLabel.textContent = '⚠️ Desteklenmiyor';
+    if (permSub)   permSub.textContent   = 'Bu tarayıcı bildirimleri desteklemiyor. Chrome kullanmanızı öneririz.';
+    if (permBtn)   { permBtn.textContent = 'Kullanılamaz'; permBtn.disabled = true; permBtn.style.opacity = '.5'; }
+  } else {
+    // default — izin henüz sorulmadı (Chrome ve destekleyen tarayıcılar)
+    if (permLabel) permLabel.textContent = '🔔 Bildirim İzni';
+    if (permSub)   permSub.textContent   = 'Bildirimler için izin vermeniz gerekiyor.';
+    if (permBtn)   { permBtn.textContent = 'İzin Ver'; permBtn.disabled = false;
+                     permBtn.style.opacity = '1'; permBtn.style.background = 'var(--amber)';
+                     permBtn.onclick = requestNotifPermission; }
+  }
+
+  var s = loadNotifSettings();
+  var granted = perm === 'granted';
+
+  [['goal','goal'],['break15','breakWarn15'],['break45','breakWarn45']].forEach(function(pair) {
+    var key = pair[0], settingKey = pair[1];
+    var cb = document.getElementById('notif-toggle-' + key);
+    var sl = document.getElementById('notif-slider-' + key);
+    if (cb) { cb.checked = granted && s[settingKey]; cb.disabled = !granted; }
+    if (sl) sl.style.background = (granted && s[settingKey]) ? 'var(--green)' : 'var(--border)';
+  });
+
+  // Ayarlar paneli alt yazısını güncelle
+  updateSettingsNotifSub();
+}
+
+function updateSettingsNotifSub() {
+  var sub = document.getElementById('settings-notif-sub');
+  if (!sub) return;
+  if (!('Notification' in window) || Notification.permission === 'denied') {
+    sub.textContent = 'İzin reddedildi — tarayıcı ayarlarını kontrol et';
+  } else if (Notification.permission === 'granted') {
+    var s = loadNotifSettings();
+    var aktif = [s.goal && 'Hedef', s.breakWarn15 && 'Mola 15dk', s.breakWarn45 && 'Mola 45dk'].filter(Boolean);
+    sub.textContent = aktif.length > 0 ? aktif.join(', ') + ' bildirimleri açık' : 'Tüm bildirimler kapalı';
+  } else {
+    sub.textContent = 'İzin bekleniyor — tıklayarak ayarla';
+  }
+}
+
+function updateNotifBtn() {
+  // artık ayarlar paneli alt yazısını güncelle
+  updateSettingsNotifSub();
+}
+
+// Mola uyarı bildirimleri — 15 dk ve 45 dk (ayrı flag'ler)
+var _breakWarn15Sent = false;
+var _breakWarn45Sent = false;
+setInterval(function() {
+  if (state.isOnBreak && state.breakStart) {
+    var breakElapsed = Date.now() - state.breakStart;
+    if (breakElapsed >= 15 * 60000 && !_breakWarn15Sent) {
+      _breakWarn15Sent = true;
+      sendNotification('☕ Mola Uyarısı', '15 dakikadır moladasın.', 'breakWarn15');
+    }
+    if (breakElapsed >= 45 * 60000 && !_breakWarn45Sent) {
+      _breakWarn45Sent = true;
+      sendNotification('☕ Uzun Mola Uyarısı', '45 dakikadır moladasın, döneceğin zaman mola bitir!', 'breakWarn45');
+    }
+  } else {
+    _breakWarn15Sent = false;
+    _breakWarn45Sent = false;
+  }
+}, 60000); // Her dakika kontrol et
 
 // ── ACTIONS ───────────────────────────────────────────────────
 function addRecord(type) {
@@ -2065,6 +2359,9 @@ function clockIn() {
   var nowD = new Date();
   checkAchievements('clockIn', {});
   checkAchievements('addRecord', { type:'giris', time:pad(nowD.getHours())+':'+pad(nowD.getMinutes()), date:dateKey(), dow:nowD.getDay() });
+  window._goalNotifSent = false;
+  updateNotifBtn();
+  updateSettingsNotifSub();
   syncUI();
   renderTodayLog();
   showToast('✅ İşe giriş kaydedildi – ' + nowStr());
@@ -4142,8 +4439,9 @@ function getTodayTargets() {
 }
 
 updateTargetsButtonUI();
+updateSettingsNotifSub();
 
-// ── TARİH ARALIĞI RAPORU ─────────────────────────────────────────
+// ── TARİH ARALIĞI RAPORU
 
 function openRangeReportModal() {
   // Varsayılan: bu ayın 1i – bugün
@@ -5350,7 +5648,7 @@ document.addEventListener('click', function(e) {
   display:none; position:fixed; bottom:5.5rem; left:1.5rem; z-index:8001;
   flex-direction:column; gap:10px; align-items:flex-start;
 ">
-  <button onclick="closeFabMenu(); openAnalizModal();" style="
+  <button onclick="closeFabMenu(); openAgendaModal();" style="
     display:flex; align-items:center; gap:10px;
     background:var(--panel); border:1px solid var(--border); border-radius:24px;
     color:var(--text); font-size:.88rem; font-weight:600;
@@ -5358,6 +5656,22 @@ document.addEventListener('click', function(e) {
     box-shadow:0 4px 16px rgba(0,0,0,.4);
     transition:transform .15s, border-color .15s;
     animation:fab-pop-in .18s cubic-bezier(.34,1.56,.64,1);
+  " onmouseenter="this.style.transform='scale(1.04)';this.style.borderColor='var(--amber)'"
+     onmouseleave="this.style.transform='scale(1)';this.style.borderColor='var(--border)'">
+    <span style="
+      width:34px; height:34px; border-radius:50%; background:var(--surface);
+      display:flex; align-items:center; justify-content:center; font-size:1.1rem; flex-shrink:0;
+    ">📋</span>
+    Ajanda
+  </button>
+  <button onclick="closeFabMenu(); openAnalizModal();" style="
+    display:flex; align-items:center; gap:10px;
+    background:var(--panel); border:1px solid var(--border); border-radius:24px;
+    color:var(--text); font-size:.88rem; font-weight:600;
+    padding:10px 18px 10px 10px; cursor:pointer;
+    box-shadow:0 4px 16px rgba(0,0,0,.4);
+    transition:transform .15s, border-color .15s;
+    animation:fab-pop-in .18s cubic-bezier(.34,1.56,.64,1) .03s backwards;
   " onmouseenter="this.style.transform='scale(1.04)';this.style.borderColor='var(--amber)'"
      onmouseleave="this.style.transform='scale(1)';this.style.borderColor='var(--border)'">
     <span style="
@@ -6289,6 +6603,400 @@ document.addEventListener('click', function(e) {
   }
 }, true);
 
+// ── AJANDA ────────────────────────────────────────────────────────────────────
+var AGENDA_CATS = [
+  { id:'toplanti',  label:'Toplantı',  icon:'🤝', color:'#6DA4E0' },
+  { id:'saha',      label:'Saha',      icon:'🚗', color:'#F5A623' },
+  { id:'ofis',      label:'Ofis',      icon:'💻', color:'#A78BFA' },
+  { id:'egitim',    label:'Eğitim',    icon:'📚', color:'#34D399' },
+  { id:'rapor',     label:'Rapor',     icon:'📝', color:'#F87171' },
+  { id:'diger',     label:'Diğer',     icon:'📌', color:'#94A3B8' },
+];
+
+var agendaCalYear      = new Date().getFullYear();
+var agendaCalMonth     = new Date().getMonth();
+var agendaSelDate      = null;
+var agendaActiveTab    = 'records';
+var agendaAnalysisPer  = 'week';
+
+function loadAgendaEntries() {
+  try { return JSON.parse(localStorage.getItem('lufer_agenda') || '{}'); } catch(e) { return {}; }
+}
+function saveAgendaEntries(data) {
+  try { localStorage.setItem('lufer_agenda', JSON.stringify(data)); } catch(e) {}
+}
+function getCatById(id) {
+  return AGENDA_CATS.find(function(c){ return c.id === id; }) || AGENDA_CATS[AGENDA_CATS.length-1];
+}
+function agendaFmtDur(startStr, endStr) {
+  if (!startStr || !endStr) return '';
+  var sp = startStr.split(':'), ep = endStr.split(':');
+  var sm = parseInt(sp[0])*60 + parseInt(sp[1]);
+  var em = parseInt(ep[0])*60 + parseInt(ep[1]);
+  var diff = em - sm;
+  if (diff <= 0) return '';
+  var h = Math.floor(diff/60), m = diff%60;
+  return h > 0 ? (h + 's ' + (m > 0 ? m + 'dk' : '')) : m + 'dk';
+}
+
+function openAgendaModal() {
+  var sp = document.getElementById('settings-panel');
+  if (sp) sp.style.display = 'none';
+  agendaCalYear  = new Date().getFullYear();
+  agendaCalMonth = new Date().getMonth();
+  agendaSelDate  = null;
+  agendaActiveTab = 'records';
+  document.getElementById('agenda-overlay').style.display = 'flex';
+  switchAgendaTab('records');
+  renderAgendaCal();
+  renderAgendaDaySection();
+}
+function closeAgendaModal() {
+  document.getElementById('agenda-overlay').style.display = 'none';
+}
+
+function switchAgendaTab(tab) {
+  agendaActiveTab = tab;
+  var isRec = tab === 'records';
+  document.getElementById('agenda-pane-records').style.display  = isRec ? 'block' : 'none';
+  document.getElementById('agenda-pane-analysis').style.display = isRec ? 'none'  : 'block';
+  var btnR = document.getElementById('agenda-tab-records');
+  var btnA = document.getElementById('agenda-tab-analysis');
+  if (isRec) {
+    btnR.style.borderBottomColor = 'var(--amber)'; btnR.style.color = 'var(--amber)'; btnR.style.fontWeight = '700';
+    btnA.style.borderBottomColor = 'transparent';  btnA.style.color = 'var(--muted)'; btnA.style.fontWeight = '600';
+  } else {
+    btnA.style.borderBottomColor = 'var(--amber)'; btnA.style.color = 'var(--amber)'; btnA.style.fontWeight = '700';
+    btnR.style.borderBottomColor = 'transparent';  btnR.style.color = 'var(--muted)'; btnR.style.fontWeight = '600';
+    renderAgendaAnalysis();
+  }
+}
+
+function agendaCalPrev() {
+  if (agendaCalMonth === 0) { agendaCalMonth = 11; agendaCalYear--; } else agendaCalMonth--;
+  renderAgendaCal();
+}
+function agendaCalNext() {
+  if (agendaCalMonth === 11) { agendaCalMonth = 0; agendaCalYear++; } else agendaCalMonth++;
+  renderAgendaCal();
+}
+
+function renderAgendaCal() {
+  var MONTHS = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+  document.getElementById('agenda-cal-title').textContent = MONTHS[agendaCalMonth] + ' ' + agendaCalYear;
+  var grid    = document.getElementById('agenda-cal-grid');
+  var entries = loadAgendaEntries();
+  var today   = new Date();
+  var todayStr = today.getFullYear() + '-' + pad(today.getMonth()+1) + '-' + pad(today.getDate());
+  var firstDay   = new Date(agendaCalYear, agendaCalMonth, 1);
+  var startDow   = (firstDay.getDay() + 6) % 7;
+  var daysInMonth = new Date(agendaCalYear, agendaCalMonth + 1, 0).getDate();
+  var daysInPrev  = new Date(agendaCalYear, agendaCalMonth, 0).getDate();
+  var pfx = agendaCalYear + '-' + pad(agendaCalMonth + 1);
+  var out = '';
+  for (var i = startDow - 1; i >= 0; i--)
+    out += '<div class="cal-day other-month"><span>' + (daysInPrev - i) + '</span></div>';
+  for (var d = 1; d <= daysInMonth; d++) {
+    var ds  = pfx + '-' + pad(d);
+    var cls = 'cal-day' + (ds === todayStr ? ' today' : '') + (ds === agendaSelDate ? ' selected' : '');
+    var dayList = entries[ds] || [];
+    // Kategorilere göre renkli noktalar
+    var catIds = {};
+    dayList.forEach(function(e){ catIds[e.cat || 'diger'] = true; });
+    var dots = Object.keys(catIds).slice(0,3).map(function(cid){
+      var cat = getCatById(cid);
+      return '<div style="width:5px;height:5px;border-radius:50%;background:' + cat.color + ';flex-shrink:0;"></div>';
+    }).join('');
+    var dotHtml = dots ? '<div style="display:flex;gap:2px;justify-content:center;margin-top:2px;">' + dots + '</div>' : '';
+    out += '<div class="' + cls + '" onclick="agendaSelectDay(\'' + ds + '\')">' 
+         + '<span>' + d + '</span>' + dotHtml + '</div>';
+  }
+  var total = startDow + daysInMonth;
+  var rem   = total % 7 === 0 ? 0 : 7 - (total % 7);
+  for (var n = 1; n <= rem; n++)
+    out += '<div class="cal-day other-month"><span>' + n + '</span></div>';
+  grid.innerHTML = out;
+}
+
+function agendaSelectDay(dateStr) {
+  agendaSelDate = dateStr;
+  renderAgendaCal();
+  renderAgendaDaySection();
+}
+
+function renderAgendaDaySection() {
+  var daySection = document.getElementById('agenda-day-section');
+  var noDay      = document.getElementById('agenda-no-day');
+  if (!agendaSelDate) { daySection.style.display = 'none'; noDay.style.display = 'block'; return; }
+  daySection.style.display = 'block'; noDay.style.display = 'none';
+  var p = agendaSelDate.split('-');
+  var d = new Date(parseInt(p[0]), parseInt(p[1])-1, parseInt(p[2]));
+  var DAYS  = ['Pazar','Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi'];
+  var MNTHS = ['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
+  document.getElementById('agenda-day-title').textContent =
+    DAYS[d.getDay()] + ', ' + d.getDate() + ' ' + MNTHS[d.getMonth()] + ' ' + p[0];
+  var entries = loadAgendaEntries();
+  var list    = (entries[agendaSelDate] || []).slice().sort(function(a,b){ return (a.start||'').localeCompare(b.start||''); });
+  // Gün özeti
+  var totalMin = 0;
+  list.forEach(function(e){
+    var dur = agendaFmtDurMin(e.start, e.end);
+    if (dur > 0) totalMin += dur;
+  });
+  var doneCount = list.filter(function(e){ return e.done; }).length;
+  var summaryParts = [];
+  if (list.length > 0) summaryParts.push(list.length + ' kayıt');
+  if (totalMin > 0) summaryParts.push(fmtAgMin(totalMin));
+  if (doneCount > 0) summaryParts.push(doneCount + ' tamamlandı');
+  document.getElementById('agenda-day-summary').textContent = summaryParts.join(' · ');
+  var listEl = document.getElementById('agenda-entries-list');
+  if (list.length === 0) {
+    listEl.innerHTML = '<div style="text-align:center; padding:.8rem 0; color:var(--muted); font-size:.84rem;">Bu gün için kayıt yok</div>';
+    return;
+  }
+  listEl.innerHTML = list.map(function(e) {
+    var cat = getCatById(e.cat || 'diger');
+    var dur = agendaFmtDur(e.start, e.end);
+    var timeStr = e.start ? (e.start + (e.end ? ' – ' + e.end : '')) : '';
+    var doneStyle = e.done ? 'opacity:.55; text-decoration:line-through;' : '';
+    return '<div style="background:var(--panel); border:1px solid var(--border); border-radius:10px;'
+      + 'padding:.65rem .9rem; margin-bottom:.5rem; border-left:3px solid ' + cat.color + ';">'
+      + '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:8px;">'
+      + '<div style="min-width:0; flex:1;">'
+      // Üst: kategori chip + süre
+      + '<div style="display:flex; align-items:center; gap:6px; margin-bottom:4px; flex-wrap:wrap;">'
+      + '<span style="font-size:.7rem; font-weight:700; padding:2px 7px; border-radius:12px;'
+      + 'background:' + cat.color + '22; color:' + cat.color + ';">' + cat.icon + ' ' + cat.label + '</span>'
+      + (dur ? '<span style="font-size:.7rem; color:var(--muted); font-family:monospace;">⏱ ' + dur + '</span>' : '')
+      + (timeStr ? '<span style="font-size:.7rem; color:var(--muted); font-family:monospace;">' + timeStr + '</span>' : '')
+      + '</div>'
+      // Açıklama
+      + '<div style="font-size:.87rem; font-weight:600; color:var(--text); ' + doneStyle + 'word-break:break-word;">'
+      + _escHtml(e.desc || '') + '</div>'
+      + '</div>'
+      // Butonlar
+      + '<div style="display:flex; flex-direction:column; gap:4px; flex-shrink:0; align-items:center;">'
+      + '<button onclick="toggleAgendaDone(&quot;' + e.id + '&quot;)" title="' + (e.done ? 'Geri al' : 'Tamamland\u0131') + '" style="background:none;border:none;cursor:pointer;font-size:1rem;padding:2px;line-height:1;">'
+      + (e.done ? '✅' : '⬜') + '</button>'
+      + '<button onclick="editAgendaEntry(&quot;' + e.id + '&quot;)" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:.85rem;padding:2px;" onmouseover="this.style.color=\'var(--text)\'" onmouseout="this.style.color=\'var(--muted)\'">\u270f\ufe0f</button>'
+      + '<button onclick="deleteAgendaEntry(&quot;' + e.id + '&quot;)" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:.85rem;padding:2px;" onmouseover="this.style.color=\'var(--red)\'" onmouseout="this.style.color=\'var(--muted)\'">\ud83d\uddd1</button>'
+      + '</div>'
+      + '</div>'
+      + '</div>';
+  }).join('');
+}
+
+function agendaFmtDurMin(startStr, endStr) {
+  if (!startStr || !endStr) return 0;
+  var sp = startStr.split(':'), ep = endStr.split(':');
+  var diff = (parseInt(ep[0])*60 + parseInt(ep[1])) - (parseInt(sp[0])*60 + parseInt(sp[1]));
+  return diff > 0 ? diff : 0;
+}
+function fmtAgMin(m) {
+  var h = Math.floor(m/60), mn = m%60;
+  return h > 0 ? (h + 's ' + (mn > 0 ? mn + 'dk' : '')) : mn + 'dk';
+}
+
+function toggleAgendaDone(id) {
+  var entries = loadAgendaEntries();
+  var list = entries[agendaSelDate] || [];
+  for (var i = 0; i < list.length; i++) {
+    if (list[i].id === id) { list[i].done = !list[i].done; break; }
+  }
+  entries[agendaSelDate] = list;
+  saveAgendaEntries(entries);
+  renderAgendaDaySection();
+}
+
+// ── Form ──────────────────────────────────────────────────────────────────────
+function renderAgendaCatPicker(selectedId) {
+  var el = document.getElementById('agenda-cat-picker');
+  el.innerHTML = AGENDA_CATS.map(function(c) {
+    var active = (c.id === (selectedId || 'diger'));
+    return '<button type="button" onclick="selectAgendaCat(&quot;' + c.id + '&quot;)" style="'
+      + 'display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:20px;'
+      + 'border:2px solid ' + (active ? c.color : 'var(--border)') + ';'
+      + 'background:' + (active ? c.color + '22' : 'none') + ';'
+      + 'color:' + (active ? c.color : 'var(--muted)') + ';'
+      + 'font-size:.78rem;font-weight:700;cursor:pointer;transition:all .15s;">'
+      + c.icon + ' ' + c.label + '</button>';
+  }).join('');
+}
+
+function selectAgendaCat(id) {
+  document.getElementById('agenda-input-cat').value = id;
+  renderAgendaCatPicker(id);
+}
+
+function calcAgendaDuration() {
+  var s = document.getElementById('agenda-input-start').value;
+  var e = document.getElementById('agenda-input-end').value;
+  var dur = agendaFmtDur(s, e);
+  var el = document.getElementById('agenda-duration-display');
+  el.textContent = dur ? '⏱ ' + dur : '';
+}
+
+function openAgendaForm(id) {
+  document.getElementById('agenda-input-desc').value   = '';
+  document.getElementById('agenda-input-start').value  = '';
+  document.getElementById('agenda-input-end').value    = '';
+  document.getElementById('agenda-input-done').checked = false;
+  document.getElementById('agenda-input-cat').value    = 'diger';
+  document.getElementById('agenda-edit-id').value      = '';
+  document.getElementById('agenda-duration-display').textContent = '';
+  document.getElementById('agenda-form-title').textContent = id ? 'Kaydı Düzenle' : 'Yeni Kayıt';
+  var selectedCat = 'diger';
+  if (id) {
+    var entries = loadAgendaEntries();
+    var list = entries[agendaSelDate] || [];
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].id === id) {
+        var e = list[i];
+        document.getElementById('agenda-input-desc').value   = e.desc  || '';
+        document.getElementById('agenda-input-start').value  = e.start || '';
+        document.getElementById('agenda-input-end').value    = e.end   || '';
+        document.getElementById('agenda-input-done').checked = !!e.done;
+        document.getElementById('agenda-edit-id').value      = id;
+        selectedCat = e.cat || 'diger';
+        calcAgendaDuration();
+        break;
+      }
+    }
+  }
+  renderAgendaCatPicker(selectedCat);
+  document.getElementById('agenda-form-overlay').style.display = 'flex';
+  setTimeout(function(){ document.getElementById('agenda-input-desc').focus(); }, 100);
+}
+function closeAgendaForm() {
+  document.getElementById('agenda-form-overlay').style.display = 'none';
+}
+function saveAgendaEntry() {
+  var desc  = document.getElementById('agenda-input-desc').value.trim();
+  var start = document.getElementById('agenda-input-start').value;
+  var end   = document.getElementById('agenda-input-end').value;
+  var done  = document.getElementById('agenda-input-done').checked;
+  var cat   = document.getElementById('agenda-input-cat').value || 'diger';
+  var editId = document.getElementById('agenda-edit-id').value;
+  if (!desc) { document.getElementById('agenda-input-desc').focus(); return; }
+  if (!agendaSelDate) return;
+  var entries = loadAgendaEntries();
+  if (!entries[agendaSelDate]) entries[agendaSelDate] = [];
+  if (editId) {
+    for (var i = 0; i < entries[agendaSelDate].length; i++) {
+      if (entries[agendaSelDate][i].id === editId) {
+        entries[agendaSelDate][i] = { id:editId, desc:desc, start:start, end:end, done:done, cat:cat };
+        break;
+      }
+    }
+  } else {
+    entries[agendaSelDate].push({ id:Date.now().toString(36), desc:desc, start:start, end:end, done:done, cat:cat });
+  }
+  saveAgendaEntries(entries);
+  closeAgendaForm();
+  renderAgendaCal();
+  renderAgendaDaySection();
+}
+function editAgendaEntry(id) { openAgendaForm(id); }
+function deleteAgendaEntry(id) {
+  var entries = loadAgendaEntries();
+  if (!entries[agendaSelDate]) return;
+  entries[agendaSelDate] = entries[agendaSelDate].filter(function(e){ return e.id !== id; });
+  if (entries[agendaSelDate].length === 0) delete entries[agendaSelDate];
+  saveAgendaEntries(entries);
+  renderAgendaCal();
+  renderAgendaDaySection();
+}
+
+// ── Analiz ───────────────────────────────────────────────────────────────────
+function setAgendaAnalysisPeriod(period, btn) {
+  agendaAnalysisPer = period;
+  document.querySelectorAll('.agenda-period-btn').forEach(function(b) {
+    b.style.background = 'var(--panel)'; b.style.borderColor = 'var(--border)';
+    b.style.color = 'var(--text)'; b.style.fontWeight = '600';
+  });
+  btn.style.background = 'var(--amber)'; btn.style.borderColor = 'var(--amber)';
+  btn.style.color = '#0B1929'; btn.style.fontWeight = '700';
+  renderAgendaAnalysis();
+}
+
+function renderAgendaAnalysis() {
+  var entries = loadAgendaEntries();
+  var now = new Date();
+  // Dönem filtresi
+  var cutoff = null;
+  if (agendaAnalysisPer === 'week') {
+    var dow = now.getDay(); var diff = (dow === 0) ? 6 : dow - 1;
+    cutoff = new Date(now); cutoff.setDate(now.getDate() - diff); cutoff.setHours(0,0,0,0);
+  } else if (agendaAnalysisPer === 'month') {
+    cutoff = new Date(now.getFullYear(), now.getMonth(), 1);
+  }
+  // Tüm kayıtları birleştir
+  var allEntries = [];
+  Object.keys(entries).forEach(function(ds) {
+    if (cutoff) {
+      var p = ds.split('-');
+      var d = new Date(parseInt(p[0]), parseInt(p[1])-1, parseInt(p[2]));
+      if (d < cutoff) return;
+    }
+    (entries[ds] || []).forEach(function(e) { allEntries.push(e); });
+  });
+  var el = document.getElementById('agenda-analysis-content');
+  if (allEntries.length === 0) {
+    el.innerHTML = '<div style="text-align:center;padding:2rem 0;color:var(--muted);font-size:.86rem;">'
+      + '<div style="font-size:1.8rem;margin-bottom:.4rem;">📭</div>Bu dönemde kayıt yok</div>';
+    return;
+  }
+  // Kategori bazlı istatistik
+  var catStats = {};
+  AGENDA_CATS.forEach(function(c){ catStats[c.id] = { count:0, durMin:0, done:0 }; });
+  var totalMin = 0, totalDone = 0;
+  allEntries.forEach(function(e) {
+    var cid = e.cat || 'diger';
+    if (!catStats[cid]) catStats[cid] = { count:0, durMin:0, done:0 };
+    catStats[cid].count++;
+    if (e.done) { catStats[cid].done++; totalDone++; }
+    var dur = agendaFmtDurMin(e.start, e.end);
+    catStats[cid].durMin += dur;
+    totalMin += dur;
+  });
+  // Toplam özet satırı
+  var out = '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.6rem;margin-bottom:1rem;">'
+    + _agendaStatCard('📋 Toplam', allEntries.length + ' kayıt', 'var(--text)')
+    + _agendaStatCard('✅ Tamamlandı', totalDone + ' / ' + allEntries.length, 'var(--green)')
+    + _agendaStatCard('⏱ Süre', totalMin > 0 ? fmtAgMin(totalMin) : '—', 'var(--amber)')
+    + '</div>';
+  // Kategori barları
+  out += '<div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:.6rem;">Kategorilere Göre</div>';
+  var maxMin = Math.max(1, Math.max.apply(null, AGENDA_CATS.map(function(c){ return catStats[c.id] ? catStats[c.id].durMin : 0; })));
+  AGENDA_CATS.forEach(function(cat) {
+    var st = catStats[cat.id];
+    if (!st || st.count === 0) return;
+    var pct = totalMin > 0 ? Math.round((st.durMin / totalMin) * 100) : 0;
+    var barW = totalMin > 0 ? Math.round((st.durMin / totalMin) * 100) : (st.count > 0 ? 30 : 0);
+    out += '<div style="background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:.65rem .9rem;margin-bottom:.45rem;border-left:3px solid ' + cat.color + ';">'
+      + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">'
+      + '<span style="font-size:.82rem;font-weight:700;color:var(--text);">' + cat.icon + ' ' + cat.label + '</span>'
+      + '<span style="font-size:.75rem;color:var(--muted);">' + st.count + ' kayıt' + (st.durMin > 0 ? ' · ' + fmtAgMin(st.durMin) : '') + (st.done > 0 ? ' · ' + st.done + '✓' : '') + '</span>'
+      + '</div>'
+      + '<div style="background:var(--border);border-radius:4px;height:5px;overflow:hidden;">'
+      + '<div style="height:100%;border-radius:4px;background:' + cat.color + ';width:' + barW + '%;transition:width .4s;"></div>'
+      + '</div>'
+      + '</div>';
+  });
+  el.innerHTML = out;
+}
+
+function _agendaStatCard(label, value, color) {
+  return '<div style="background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:.65rem .75rem;text-align:center;">'
+    + '<div style="font-size:.68rem;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:3px;">' + label + '</div>'
+    + '<div style="font-size:.95rem;font-weight:700;color:' + color + ';">' + value + '</div>'
+    + '</div>';
+}
+
+function _escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
 // ── Oyun Merkezi ─────────────────────────────────────────────────────────────
 function openGameHub() {
   document.getElementById('game-hub-overlay').style.display = 'flex';
@@ -6347,6 +7055,292 @@ function gameCardHoverOut(el) {
 }
 </script>
 
+
+<!-- ══ AJANDA MODAL ══ -->
+<div id="agenda-overlay" onclick="if(event.target===this)closeAgendaModal()" style="
+  display:none; position:fixed; inset:0; z-index:600;
+  background:rgba(0,0,0,.75); backdrop-filter:blur(6px);
+  align-items:flex-start; justify-content:center; padding:1rem; overflow-y:auto;
+">
+  <div style="
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:18px; width:100%; max-width:580px; margin:auto;
+    box-shadow:0 24px 60px rgba(0,0,0,.6);
+    animation:modal-in .22s cubic-bezier(.34,1.56,.64,1);
+  " onclick="event.stopPropagation()">
+
+    <!-- Başlık -->
+    <div style="padding:1.25rem 1.5rem 1rem; border-bottom:1px solid var(--border);
+                display:flex; align-items:center; justify-content:space-between;">
+      <div style="display:flex; align-items:center; gap:12px;">
+        <span style="font-size:1.4rem;">📋</span>
+        <div>
+          <div style="font-weight:700; font-size:1.05rem;">Ajanda</div>
+          <div style="font-size:.78rem; color:var(--muted); margin-top:1px;">Günlük iş takibi</div>
+        </div>
+      </div>
+      <button onclick="closeAgendaModal()" style="
+        background:var(--panel); border:1px solid var(--border); border-radius:10px;
+        color:var(--text); font-size:.82rem; font-weight:600;
+        padding:6px 14px; cursor:pointer;">✕</button>
+    </div>
+
+    <!-- Sekme çubuğu -->
+    <div style="display:flex; border-bottom:1px solid var(--border);">
+      <button id="agenda-tab-records" onclick="switchAgendaTab('records')" style="
+        flex:1; background:none; border:none; border-bottom:2px solid var(--amber);
+        color:var(--amber); font-size:.85rem; font-weight:700;
+        padding:.75rem; cursor:pointer; transition:all .15s;">📅 Kayıtlar</button>
+      <button id="agenda-tab-analysis" onclick="switchAgendaTab('analysis')" style="
+        flex:1; background:none; border:none; border-bottom:2px solid transparent;
+        color:var(--muted); font-size:.85rem; font-weight:600;
+        padding:.75rem; cursor:pointer; transition:all .15s;">📊 Analiz</button>
+    </div>
+
+    <!-- KAYITLAR SEKMESİ -->
+    <div id="agenda-pane-records" style="padding:1.1rem 1.25rem;">
+
+      <!-- Takvim -->
+      <div style="background:var(--panel); border:1px solid var(--border); border-radius:12px; overflow:hidden; margin-bottom:1.1rem;">
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:.65rem 1rem; border-bottom:1px solid var(--border);">
+          <button onclick="agendaCalPrev()" style="background:none; border:none; color:var(--text); font-size:1.1rem; cursor:pointer; padding:4px 10px; border-radius:8px; transition:background .15s;" onmouseover="this.style.background='var(--surface)'" onmouseout="this.style.background='none'">‹</button>
+          <span id="agenda-cal-title" style="font-weight:700; font-size:.9rem;"></span>
+          <button onclick="agendaCalNext()" style="background:none; border:none; color:var(--text); font-size:1.1rem; cursor:pointer; padding:4px 10px; border-radius:8px; transition:background .15s;" onmouseover="this.style.background='var(--surface)'" onmouseout="this.style.background='none'">›</button>
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(7,1fr); border-bottom:1px solid var(--border);">
+          <div class="cal-dow">Pzt</div><div class="cal-dow">Sal</div><div class="cal-dow">Çar</div>
+          <div class="cal-dow">Per</div><div class="cal-dow">Cum</div>
+          <div class="cal-dow" style="color:var(--amber)">Cmt</div>
+          <div class="cal-dow" style="color:var(--amber)">Paz</div>
+        </div>
+        <div id="agenda-cal-grid" style="display:grid; grid-template-columns:repeat(7,1fr);"></div>
+      </div>
+
+      <!-- Seçili gün -->
+      <div id="agenda-day-section" style="display:none;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:.8rem; gap:8px; flex-wrap:wrap;">
+          <div id="agenda-day-title" style="font-size:.78rem; font-weight:700; text-transform:uppercase; letter-spacing:1.5px; color:var(--muted);"></div>
+          <div style="display:flex; gap:6px; align-items:center;">
+            <div id="agenda-day-summary" style="font-size:.75rem; color:var(--muted);"></div>
+            <button onclick="openAgendaForm()" style="
+              background:var(--amber); border:none; border-radius:8px;
+              color:#0B1929; font-size:.8rem; font-weight:700;
+              padding:5px 12px; cursor:pointer;">＋ Ekle</button>
+          </div>
+        </div>
+        <div id="agenda-entries-list"></div>
+      </div>
+
+      <!-- Gün seçilmedi -->
+      <div id="agenda-no-day" style="text-align:center; padding:1.25rem 0; color:var(--muted); font-size:.86rem;">
+        <div style="font-size:1.8rem; margin-bottom:.4rem;">📅</div>
+        Takvimden bir gün seçin
+      </div>
+
+    </div>
+
+    <!-- ANALİZ SEKMESİ -->
+    <div id="agenda-pane-analysis" style="display:none; padding:1.1rem 1.25rem;">
+
+      <!-- Dönem seçici -->
+      <div style="display:flex; gap:.5rem; margin-bottom:1rem; flex-wrap:wrap;">
+        <button class="agenda-period-btn active" data-period="week" onclick="setAgendaAnalysisPeriod('week',this)" style="
+          flex:1; min-width:80px; background:var(--amber); border:1px solid var(--amber);
+          color:#0B1929; border-radius:8px; padding:7px 8px; cursor:pointer;
+          font-size:.8rem; font-weight:700; transition:all .15s;">Bu Hafta</button>
+        <button class="agenda-period-btn" data-period="month" onclick="setAgendaAnalysisPeriod('month',this)" style="
+          flex:1; min-width:80px; background:var(--panel); border:1px solid var(--border);
+          color:var(--text); border-radius:8px; padding:7px 8px; cursor:pointer;
+          font-size:.8rem; font-weight:700; transition:all .15s;">Bu Ay</button>
+        <button class="agenda-period-btn" data-period="all" onclick="setAgendaAnalysisPeriod('all',this)" style="
+          flex:1; min-width:80px; background:var(--panel); border:1px solid var(--border);
+          color:var(--text); border-radius:8px; padding:7px 8px; cursor:pointer;
+          font-size:.8rem; font-weight:700; transition:all .15s;">Tüm Zamanlar</button>
+      </div>
+
+      <div id="agenda-analysis-content"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══ AJANDA KAYIT FORMU MODAL ══ -->
+<div id="agenda-form-overlay" onclick="if(event.target===this)closeAgendaForm()" style="
+  display:none; position:fixed; inset:0; z-index:700;
+  background:rgba(0,0,0,.75); backdrop-filter:blur(6px);
+  align-items:center; justify-content:center; padding:1rem;
+">
+  <div style="
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:18px; width:100%; max-width:420px;
+    box-shadow:0 24px 60px rgba(0,0,0,.6);
+    animation:modal-in .22s cubic-bezier(.34,1.56,.64,1);
+    max-height:90vh; overflow-y:auto;
+  " onclick="event.stopPropagation()">
+
+    <div style="padding:1.1rem 1.5rem .85rem; border-bottom:1px solid var(--border);
+                display:flex; align-items:center; gap:10px; position:sticky; top:0; background:var(--surface); z-index:1;">
+      <span style="font-size:1.2rem;">✏️</span>
+      <div style="font-weight:700; font-size:.95rem;" id="agenda-form-title">Yeni Kayıt</div>
+    </div>
+
+    <div style="padding:1rem 1.5rem; display:flex; flex-direction:column; gap:.85rem;">
+
+      <!-- Kategori -->
+      <div>
+        <label style="font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.8px; color:var(--muted); display:block; margin-bottom:.5rem;">Kategori</label>
+        <div id="agenda-cat-picker" style="display:flex; flex-wrap:wrap; gap:.4rem;"></div>
+        <input type="hidden" id="agenda-input-cat" value="diger">
+      </div>
+
+      <!-- Açıklama -->
+      <div>
+        <label style="font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.8px; color:var(--muted); display:block; margin-bottom:.4rem;">Ne yaptınız?</label>
+        <textarea id="agenda-input-desc" rows="3" placeholder="Toplantı, rapor hazırlama, saha ziyareti..." style="
+          width:100%; background:var(--panel); border:1px solid var(--border);
+          border-radius:10px; padding:.65rem .85rem; color:var(--text);
+          font-size:.88rem; font-family:inherit; resize:none;
+          box-sizing:border-box; transition:border-color .15s; outline:none;
+        " onfocus="this.style.borderColor='var(--amber)'" onblur="this.style.borderColor='var(--border)'"></textarea>
+      </div>
+
+      <!-- Başlangıç / Bitiş / Otomatik süre -->
+      <div>
+        <label style="font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.8px; color:var(--muted); display:block; margin-bottom:.4rem;">Süre</label>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:.6rem; margin-bottom:.5rem;">
+          <input type="time" id="agenda-input-start" placeholder="Başlangıç" onchange="calcAgendaDuration()" style="
+            width:100%; background:var(--panel); border:1px solid var(--border);
+            border-radius:10px; padding:.65rem .85rem; color:var(--text);
+            font-size:.85rem; font-family:'JetBrains Mono',monospace;
+            box-sizing:border-box; outline:none; transition:border-color .15s;
+          " onfocus="this.style.borderColor='var(--amber)'" onblur="this.style.borderColor='var(--border)'">
+          <input type="time" id="agenda-input-end" placeholder="Bitiş" onchange="calcAgendaDuration()" style="
+            width:100%; background:var(--panel); border:1px solid var(--border);
+            border-radius:10px; padding:.65rem .85rem; color:var(--text);
+            font-size:.85rem; font-family:'JetBrains Mono',monospace;
+            box-sizing:border-box; outline:none; transition:border-color .15s;
+          " onfocus="this.style.borderColor='var(--amber)'" onblur="this.style.borderColor='var(--border)'">
+        </div>
+        <div id="agenda-duration-display" style="font-size:.78rem; color:var(--amber); font-family:'JetBrains Mono',monospace; min-height:1.2em;"></div>
+      </div>
+
+      <!-- Tamamlandı -->
+      <div style="display:flex; align-items:center; gap:10px; padding:.6rem .85rem;
+                  background:var(--panel); border:1px solid var(--border); border-radius:10px;">
+        <input type="checkbox" id="agenda-input-done" style="width:16px; height:16px; accent-color:var(--green); cursor:pointer; flex-shrink:0;">
+        <label for="agenda-input-done" style="font-size:.87rem; font-weight:600; cursor:pointer; color:var(--text);">Tamamlandı olarak işaretle</label>
+      </div>
+
+      <input type="hidden" id="agenda-edit-id">
+    </div>
+
+    <div style="padding:.85rem 1.5rem 1.1rem; display:flex; gap:.6rem; justify-content:flex-end;
+                border-top:1px solid var(--border); position:sticky; bottom:0; background:var(--surface);">
+      <button onclick="closeAgendaForm()" style="
+        background:var(--panel); border:1px solid var(--border); border-radius:10px;
+        color:var(--text); font-size:.88rem; font-weight:600; padding:9px 16px; cursor:pointer;">
+        İptal
+      </button>
+      <button onclick="saveAgendaEntry()" style="
+        background:var(--amber); border:none; border-radius:10px;
+        color:#0B1929; font-size:.88rem; font-weight:700; padding:9px 20px; cursor:pointer;">
+        Kaydet
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ BİLDİRİM AYARLARI MODAL ══ -->
+<div id="notif-overlay" onclick="if(event.target===this)closeNotifModal()" style="
+  display:none; position:fixed; inset:0; z-index:600;
+  background:rgba(0,0,0,.7); backdrop-filter:blur(6px);
+  align-items:center; justify-content:center; padding:1rem;
+">
+  <div style="
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:18px; width:100%; max-width:420px;
+    box-shadow:0 24px 60px rgba(0,0,0,.6);
+    animation:modal-in .22s cubic-bezier(.34,1.56,.64,1);
+  " onclick="event.stopPropagation()">
+
+    <!-- Başlık -->
+    <div style="padding:1.4rem 1.5rem 1.1rem; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:12px;">
+      <span style="font-size:1.5rem;">🔔</span>
+      <div>
+        <div style="font-weight:700; font-size:1rem;">Bildirim Ayarları</div>
+        <div style="font-size:.78rem; color:var(--muted); margin-top:2px;">Hangi durumlarda bildirim gönderilsin?</div>
+      </div>
+    </div>
+
+    <!-- İzin durumu -->
+    <div style="padding:1rem 1.5rem; border-bottom:1px solid var(--border);">
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+        <div>
+          <div style="font-size:.82rem; font-weight:600;" id="notif-perm-label">Bildirim İzni</div>
+          <div style="font-size:.74rem; color:var(--muted); margin-top:2px;" id="notif-perm-sub">Durum kontrol ediliyor...</div>
+        </div>
+        <button id="notif-perm-btn" onclick="requestNotifPermission()" style="
+          background:var(--amber); border:none; border-radius:10px;
+          color:#0B1929; font-size:.82rem; font-weight:700;
+          padding:8px 16px; cursor:pointer; transition:opacity .15s; white-space:nowrap;
+        ">İzin Ver</button>
+      </div>
+    </div>
+
+    <!-- Toggle listesi -->
+    <div style="padding:.75rem 1.5rem; display:flex; flex-direction:column; gap:0;">
+
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:.7rem 0; border-bottom:1px solid var(--border);">
+        <div>
+          <div style="font-size:.85rem; font-weight:600;">🎯 Hedef Tamamlandı</div>
+          <div style="font-size:.74rem; color:var(--muted); margin-top:2px;">Mesai hedefine ulaşınca bildir</div>
+        </div>
+        <label style="position:relative; display:inline-block; width:42px; height:24px; flex-shrink:0;">
+          <input type="checkbox" id="notif-toggle-goal" onchange="saveNotifSettings()" style="opacity:0;width:0;height:0;">
+          <span onclick="document.getElementById('notif-toggle-goal').click()" style="
+            position:absolute; inset:0; background:var(--border); border-radius:24px; cursor:pointer; transition:.2s;
+          " id="notif-slider-goal"></span>
+        </label>
+      </div>
+
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:.7rem 0; border-bottom:1px solid var(--border);">
+        <div>
+          <div style="font-size:.85rem; font-weight:600;">☕ Mola Uyarısı — 15 dk</div>
+          <div style="font-size:.74rem; color:var(--muted); margin-top:2px;">Mola 15 dakikayı geçince uyar</div>
+        </div>
+        <label style="position:relative; display:inline-block; width:42px; height:24px; flex-shrink:0;">
+          <input type="checkbox" id="notif-toggle-break15" onchange="saveNotifSettings()" style="opacity:0;width:0;height:0;">
+          <span onclick="document.getElementById('notif-toggle-break15').click()" style="
+            position:absolute; inset:0; background:var(--border); border-radius:24px; cursor:pointer; transition:.2s;
+          " id="notif-slider-break15"></span>
+        </label>
+      </div>
+
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:.7rem 0;">
+        <div>
+          <div style="font-size:.85rem; font-weight:600;">☕ Mola Uyarısı — 45 dk</div>
+          <div style="font-size:.74rem; color:var(--muted); margin-top:2px;">Mola 45 dakikayı geçince uyar</div>
+        </div>
+        <label style="position:relative; display:inline-block; width:42px; height:24px; flex-shrink:0;">
+          <input type="checkbox" id="notif-toggle-break45" onchange="saveNotifSettings()" style="opacity:0;width:0;height:0;">
+          <span onclick="document.getElementById('notif-toggle-break45').click()" style="
+            position:absolute; inset:0; background:var(--border); border-radius:24px; cursor:pointer; transition:.2s;
+          " id="notif-slider-break45"></span>
+        </label>
+      </div>
+
+    </div>
+
+    <!-- Kapat -->
+    <div style="padding:.75rem 1.5rem 1.4rem; display:flex; justify-content:flex-end; border-top:1px solid var(--border);">
+      <button onclick="closeNotifModal()" style="
+        background:var(--panel); border:1px solid var(--border); border-radius:10px;
+        color:var(--text); font-size:.88rem; font-weight:600;
+        padding:10px 20px; cursor:pointer; transition:all .15s;
+      ">✕ Kapat</button>
+    </div>
+  </div>
+</div>
 
 <!-- ══ AKILLI ANALİZ MODAL ══ -->
 <div id="analiz-overlay" onclick="if(event.target===this)closeAnalizModal()" style="
