@@ -172,8 +172,55 @@
   /* ── MAIN ── */
   main { flex: 1; padding: 2rem; max-width: 860px; margin: 0 auto; width: 100%; }
 
+  /* Sekme geçiş kayma animasyonu */
   .tab-pane { display: none; }
-  .tab-pane.active { display: block; }
+  .tab-pane.active {
+    display: block;
+    animation: tab-slide-in .22s cubic-bezier(.25,.46,.45,.94);
+  }
+  @keyframes tab-slide-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Kayıt satırı slide-in */
+  @keyframes record-in {
+    from { opacity: 0; transform: translateX(-14px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+  .record-row-anim {
+    animation: record-in .28s cubic-bezier(.25,.46,.45,.94) both;
+  }
+
+  /* Summary kart count-up flash */
+  @keyframes val-pop {
+    0%   { transform: scale(1); }
+    40%  { transform: scale(1.12); color: var(--amber); }
+    100% { transform: scale(1); }
+  }
+  .s-value.val-pop {
+    animation: val-pop .35s cubic-bezier(.34,1.56,.64,1);
+  }
+
+  /* Hedef ilerleme tamamlandı parlama */
+  @keyframes goal-shine {
+    0%   { box-shadow: none; }
+    50%  { box-shadow: 0 0 0 4px rgba(100,185,100,.35), 0 0 16px rgba(100,185,100,.25); }
+    100% { box-shadow: none; }
+  }
+  .goal-done-shine {
+    animation: goal-shine .7s ease-out;
+  }
+
+  /* Hedef %100 yazı parlaması */
+  @keyframes goal-text-pop {
+    0%   { transform: scale(1); opacity: 1; }
+    50%  { transform: scale(1.18); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  .goal-text-pop {
+    animation: goal-text-pop .4s cubic-bezier(.34,1.56,.64,1);
+  }
 
   /* ── CHRONOMETER ── */
   .chrono-card {
@@ -973,17 +1020,18 @@
       <div style="font-size:.75rem;color:var(--muted);margin-top:1px;" id="targets-btn-sub">Günlük çalışma ve mola hedefleri</div>
     </div>
   </button>
+
   <div style="height:1px;background:var(--border);margin:4px 8px;"></div>
-  <button onclick="openNotifModal()" id="settings-notif-btn" style="
+  <button onclick="showOnboardingAgain()" style="
     width:100%;background:none;border:none;color:var(--text);
     padding:10px 12px;text-align:left;cursor:pointer;border-radius:8px;
     font-size:.88rem;display:flex;align-items:center;gap:10px;
     transition:background .15s;
   " onmouseover="this.style.background='var(--panel)'" onmouseout="this.style.background='none'">
-    <span style="font-size:1.1rem;">🔔</span>
+    <span style="font-size:1.1rem;">👋</span>
     <div>
-      <div style="font-weight:600;">Bildirim Ayarları</div>
-      <div style="font-size:.75rem;color:var(--muted);margin-top:1px;" id="settings-notif-sub">Yükleniyor...</div>
+      <div style="font-weight:600;">Tanıtımı Tekrar Göster</div>
+      <div style="font-size:.75rem;color:var(--muted);margin-top:1px;">Uygulama turunu baştan başlat</div>
     </div>
   </button>
   <div style="height:1px;background:var(--border);margin:4px 8px;"></div>
@@ -1946,10 +1994,25 @@ function updateSummary() {
   const sg = document.getElementById('s-gorev');
   const sn = document.getElementById('s-net');
 
-  if (sw) sw.textContent  = toHM(workMs);
-  if (sb) sb.textContent  = toHM(breakMs);
-  if (sg) sg.textContent  = toHM(gorevMs);
-  if (sn) sn.textContent  = toHM(Math.max(0, workMs - breakMs));
+  function _setValAnimated(el, newVal) {
+    if (!el) return;
+    if (el.textContent !== newVal) {
+      el.textContent = newVal;
+      el.classList.remove('val-pop');
+      void el.offsetWidth;
+      el.classList.add('val-pop');
+      el.addEventListener('animationend', function() { el.classList.remove('val-pop'); }, { once: true });
+    }
+  }
+  // Her dakika değişiminde animasyon tetiklensin (her 500ms'de değil)
+  var _newWork = toHM(workMs);
+  var _newBreak = toHM(breakMs);
+  var _newGorev = toHM(gorevMs);
+  var _newNet   = toHM(Math.max(0, workMs - breakMs));
+  _setValAnimated(sw, _newWork);
+  _setValAnimated(sb, _newBreak);
+  _setValAnimated(sg, _newGorev);
+  _setValAnimated(sn, _newNet);
 
   // ── Tahmini çıkış saati ────────────────────────────────────────────────
   var exitInline  = document.getElementById('exit-estimate-inline');
@@ -1999,7 +2062,7 @@ function updateSummary() {
       }
       if (!window._goalNotifSent && overMin === 0) {
         window._goalNotifSent = true;
-        sendNotification('🎯 Hedef Tamamlandı!', goalMin + ' dakikalık mesai hedefine ulaştın.', 'goal');
+        
       }
     }
   } else if (exitInline && !state.isWorking) {
@@ -2016,16 +2079,45 @@ function updateSummary() {
     if (sng) {
       var netDoneMin = Math.floor(Math.max(0, workMs - breakMs) / 60000);
       var netPct = Math.min(100, Math.round(netDoneMin / tgt.workMin * 100));
-      sng.textContent   = 'Hedef: %' + netPct;
-      sng.style.color   = netDoneMin >= tgt.workMin ? 'var(--green)' : 'var(--muted)';
+      var netDone = netDoneMin >= tgt.workMin;
+      // %100'e ilk ulaşılınca parlama tetikle
+      var _prevNetPct = parseInt(sng.dataset.pct || '0');
+      if (netDone && _prevNetPct < 100) {
+        var netCard = sng.closest('.summary-card') || sng.parentElement;
+        if (netCard) {
+          netCard.classList.remove('goal-done-shine');
+          void netCard.offsetWidth;
+          netCard.classList.add('goal-done-shine');
+          netCard.addEventListener('animationend', function() { netCard.classList.remove('goal-done-shine'); }, { once: true });
+        }
+        sng.classList.remove('goal-text-pop');
+        void sng.offsetWidth;
+        sng.classList.add('goal-text-pop');
+        sng.addEventListener('animationend', function() { sng.classList.remove('goal-text-pop'); }, { once: true });
+      }
+      sng.dataset.pct   = netPct;
+      sng.textContent   = netDone ? '✓ Hedef Tamamlandı!' : 'Hedef: %' + netPct;
+      sng.style.color   = netDone ? 'var(--green)' : 'var(--muted)';
       sng.style.display = 'block';
     }
     // Mola %
     if (sbg && tgt.breakMin > 0) {
       var breakDoneMin = Math.floor(breakMs / 60000);
       var breakPct = Math.min(100, Math.round(breakDoneMin / tgt.breakMin * 100));
-      sbg.textContent   = 'Hedef: %' + breakPct;
-      sbg.style.color   = breakDoneMin >= tgt.breakMin ? 'var(--green)' : 'var(--muted)';
+      var breakDone = breakDoneMin >= tgt.breakMin;
+      var _prevBreakPct = parseInt(sbg.dataset.pct || '0');
+      if (breakDone && _prevBreakPct < 100) {
+        var breakCard = sbg.closest('.summary-card') || sbg.parentElement;
+        if (breakCard) {
+          breakCard.classList.remove('goal-done-shine');
+          void breakCard.offsetWidth;
+          breakCard.classList.add('goal-done-shine');
+          breakCard.addEventListener('animationend', function() { breakCard.classList.remove('goal-done-shine'); }, { once: true });
+        }
+      }
+      sbg.dataset.pct   = breakPct;
+      sbg.textContent   = breakDone ? '✓ Hedef Tamamlandı!' : 'Hedef: %' + breakPct;
+      sbg.style.color   = breakDone ? 'var(--green)' : 'var(--muted)';
       sbg.style.display = 'block';
     } else if (sbg) {
       sbg.style.display = 'none';
@@ -2036,220 +2128,6 @@ function updateSummary() {
   }
 }
 
-// ── BİLDİRİM SİSTEMİ ──────────────────────────────────────────────────────
-function _detectPlatform() {
-  var ua = navigator.userAgent;
-  var isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
-  var isSafari = /^((?!chrome|android).)*safari/i.test(ua);
-  var isPWA = window.navigator.standalone === true ||
-              window.matchMedia('(display-mode: standalone)').matches;
-  return { isIOS: isIOS, isSafari: isSafari && !isIOS, isPWA: isPWA,
-           hasNotifAPI: ('Notification' in window) };
-}
-
-function sendNotification(title, body, type) {
-  if (!('Notification' in window)) return;
-  if (Notification.permission !== 'granted') return;
-  if (type) {
-    var s = loadNotifSettings();
-    if (type === 'goal'         && !s.goal)         return;
-    if (type === 'breakWarn15'  && !s.breakWarn15)  return;
-    if (type === 'breakWarn45'  && !s.breakWarn45)  return;
-  }
-  try {
-    new Notification(title, {
-      body: body,
-      icon: document.querySelector('link[rel="apple-touch-icon"]') ?
-            document.querySelector('link[rel="apple-touch-icon"]').href : '',
-      tag: 'lufer-' + (type || Date.now())
-    });
-  } catch(e) {}
-}
-
-function requestNotifPermission() {
-  var p = _detectPlatform();
-
-  if (p.isIOS && !p.isPWA) {
-    showToast('iOS\'ta bildirim için uygulamayı önce Ana Ekrana ekleyin.');
-    return;
-  }
-  if (!p.hasNotifAPI) {
-    showToast('Bu tarayıcı bildirimleri desteklemiyor.');
-    return;
-  }
-  if (Notification.permission === 'granted') {
-    renderNotifModal();
-    return;
-  }
-  if (Notification.permission === 'denied') {
-    showToast('İzin daha önce reddedildi. Tarayıcı adres çubuğundaki 🔒 simgesinden izin verin.');
-    return;
-  }
-  // Hem callback (eski Safari) hem Promise (modern Chrome) destekli
-  var result = Notification.requestPermission(function(perm) {
-    renderNotifModal();
-    if (perm === 'granted') {
-      setTimeout(function() {
-        sendNotification('🔔 Bildirimler Açıldı', 'Bildirimler başarıyla etkinleştirildi!');
-      }, 500);
-    }
-  });
-  if (result && typeof result.then === 'function') {
-    result.then(function(perm) {
-      renderNotifModal();
-      if (perm === 'granted') {
-        setTimeout(function() {
-          sendNotification('🔔 Bildirimler Açıldı', 'Bildirimler başarıyla etkinleştirildi!');
-        }, 500);
-      } else if (perm === 'denied') {
-        showToast('Bildirim izni reddedildi.');
-      }
-    });
-  }
-}
-
-// ── BİLDİRİM AYARLARI MODAL ────────────────────────────────────────────────
-function openNotifModal() {
-  var sp = document.getElementById('settings-panel');
-  if (sp) sp.style.display = 'none';
-  document.getElementById('notif-overlay').style.display = 'flex';
-  renderNotifModal();
-  // Modal açıkken permission değişimini yakala (izin verince anında güncelle)
-  if (window._notifPollTimer) clearInterval(window._notifPollTimer);
-  window._notifPermCache = ('Notification' in window) ? Notification.permission : 'unsupported';
-  window._notifPollTimer = setInterval(function() {
-    if (!('Notification' in window)) return;
-    var current = Notification.permission;
-    if (current !== window._notifPermCache) {
-      window._notifPermCache = current;
-      renderNotifModal();
-      updateSettingsNotifSub();
-    }
-  }, 500);
-}
-
-function closeNotifModal() {
-  document.getElementById('notif-overlay').style.display = 'none';
-  if (window._notifPollTimer) { clearInterval(window._notifPollTimer); window._notifPollTimer = null; }
-}
-
-function loadNotifSettings() {
-  try {
-    return JSON.parse(localStorage.getItem('lufer_notif_settings') || 'null')
-      || { goal: true, breakWarn15: true, breakWarn45: true };
-  } catch(e) {
-    return { goal: true, breakWarn15: true, breakWarn45: true };
-  }
-}
-
-function saveNotifSettings() {
-  var s = {
-    goal:       document.getElementById('notif-toggle-goal').checked,
-    breakWarn15: document.getElementById('notif-toggle-break15').checked,
-    breakWarn45: document.getElementById('notif-toggle-break45').checked
-  };
-  try { localStorage.setItem('lufer_notif_settings', JSON.stringify(s)); } catch(e) {}
-  renderNotifModal();
-}
-
-function _setSlider(sliderId, checked) {
-  var el = document.getElementById(sliderId);
-  if (!el) return;
-  el.style.background = checked ? 'var(--green)' : 'var(--border)';
-  el.style.setProperty('--tw', checked ? '18px' : '2px');
-  // Pseudo-element yerine after ile simüle edilmiş; renk yeterli görsel geri bildirim
-}
-
-function renderNotifModal() {
-  var p    = _detectPlatform();
-  var perm = p.hasNotifAPI ? Notification.permission : 'unsupported';
-  var permLabel = document.getElementById('notif-perm-label');
-  var permSub   = document.getElementById('notif-perm-sub');
-  var permBtn   = document.getElementById('notif-perm-btn');
-
-  // iOS Safari — PWA değilse bildirim API'si yok
-  if (p.isIOS && !p.isPWA) {
-    if (permLabel) permLabel.textContent = '📱 iOS Safari';
-    if (permSub)   permSub.textContent   = 'Safari\'de bildirim için Ana Ekrana ekleyin: Paylaş → Ana Ekrana Ekle. Uygulama açıldığında bildirimler aktif olur.';
-    if (permBtn)   { permBtn.textContent = 'Ana Ekrana Ekle'; permBtn.disabled = false; permBtn.style.opacity = '1';
-                     permBtn.style.background = 'var(--amber)'; permBtn.onclick = function() {
-                       showToast('Safari\'de Paylaş butonuna → "Ana Ekrana Ekle" seçeneğine dokunun.');
-                     }; }
-  } else if (perm === 'granted') {
-    if (permLabel) permLabel.textContent = '✅ Bildirim İzni';
-    if (permSub)   permSub.textContent   = 'Bildirimler aktif, gönderim hazır.';
-    if (permBtn)   { permBtn.textContent = 'İzin Verildi ✓'; permBtn.disabled = true;
-                     permBtn.style.opacity = '.5'; permBtn.style.background = 'var(--green)'; }
-  } else if (perm === 'denied') {
-    if (permLabel) permLabel.textContent = '🚫 İzin Reddedildi';
-    if (permSub)   permSub.textContent   = 'Adres çubuğundaki 🔒 simgesine tıklayıp Bildirimler iznini "İzin Ver" yapın, sonra sayfayı yenileyin.';
-    if (permBtn)   { permBtn.textContent = 'Engellendi'; permBtn.disabled = true; permBtn.style.opacity = '.5'; }
-  } else if (perm === 'unsupported') {
-    if (permLabel) permLabel.textContent = '⚠️ Desteklenmiyor';
-    if (permSub)   permSub.textContent   = 'Bu tarayıcı bildirimleri desteklemiyor. Chrome kullanmanızı öneririz.';
-    if (permBtn)   { permBtn.textContent = 'Kullanılamaz'; permBtn.disabled = true; permBtn.style.opacity = '.5'; }
-  } else {
-    // default — izin henüz sorulmadı (Chrome ve destekleyen tarayıcılar)
-    if (permLabel) permLabel.textContent = '🔔 Bildirim İzni';
-    if (permSub)   permSub.textContent   = 'Bildirimler için izin vermeniz gerekiyor.';
-    if (permBtn)   { permBtn.textContent = 'İzin Ver'; permBtn.disabled = false;
-                     permBtn.style.opacity = '1'; permBtn.style.background = 'var(--amber)';
-                     permBtn.onclick = requestNotifPermission; }
-  }
-
-  var s = loadNotifSettings();
-  var granted = perm === 'granted';
-
-  [['goal','goal'],['break15','breakWarn15'],['break45','breakWarn45']].forEach(function(pair) {
-    var key = pair[0], settingKey = pair[1];
-    var cb = document.getElementById('notif-toggle-' + key);
-    var sl = document.getElementById('notif-slider-' + key);
-    if (cb) { cb.checked = granted && s[settingKey]; cb.disabled = !granted; }
-    if (sl) sl.style.background = (granted && s[settingKey]) ? 'var(--green)' : 'var(--border)';
-  });
-
-  // Ayarlar paneli alt yazısını güncelle
-  updateSettingsNotifSub();
-}
-
-function updateSettingsNotifSub() {
-  var sub = document.getElementById('settings-notif-sub');
-  if (!sub) return;
-  if (!('Notification' in window) || Notification.permission === 'denied') {
-    sub.textContent = 'İzin reddedildi — tarayıcı ayarlarını kontrol et';
-  } else if (Notification.permission === 'granted') {
-    var s = loadNotifSettings();
-    var aktif = [s.goal && 'Hedef', s.breakWarn15 && 'Mola 15dk', s.breakWarn45 && 'Mola 45dk'].filter(Boolean);
-    sub.textContent = aktif.length > 0 ? aktif.join(', ') + ' bildirimleri açık' : 'Tüm bildirimler kapalı';
-  } else {
-    sub.textContent = 'İzin bekleniyor — tıklayarak ayarla';
-  }
-}
-
-function updateNotifBtn() {
-  // artık ayarlar paneli alt yazısını güncelle
-  updateSettingsNotifSub();
-}
-
-// Mola uyarı bildirimleri — 15 dk ve 45 dk (ayrı flag'ler)
-var _breakWarn15Sent = false;
-var _breakWarn45Sent = false;
-setInterval(function() {
-  if (state.isOnBreak && state.breakStart) {
-    var breakElapsed = Date.now() - state.breakStart;
-    if (breakElapsed >= 15 * 60000 && !_breakWarn15Sent) {
-      _breakWarn15Sent = true;
-      sendNotification('☕ Mola Uyarısı', '15 dakikadır moladasın.', 'breakWarn15');
-    }
-    if (breakElapsed >= 45 * 60000 && !_breakWarn45Sent) {
-      _breakWarn45Sent = true;
-      sendNotification('☕ Uzun Mola Uyarısı', '45 dakikadır moladasın, döneceğin zaman mola bitir!', 'breakWarn45');
-    }
-  } else {
-    _breakWarn15Sent = false;
-    _breakWarn45Sent = false;
-  }
-}, 60000); // Her dakika kontrol et
 
 // ── ACTIONS ───────────────────────────────────────────────────
 function addRecord(type) {
@@ -2360,8 +2238,7 @@ function clockIn() {
   checkAchievements('clockIn', {});
   checkAchievements('addRecord', { type:'giris', time:pad(nowD.getHours())+':'+pad(nowD.getMinutes()), date:dateKey(), dow:nowD.getDay() });
   window._goalNotifSent = false;
-  updateNotifBtn();
-  updateSettingsNotifSub();
+
   syncUI();
   renderTodayLog();
   showToast('✅ İşe giriş kaydedildi – ' + nowStr());
@@ -2490,7 +2367,7 @@ function renderTodayLog() {
     el.innerHTML = `<div class="log-empty"><div class="big">📋</div>Henüz kayıt yok. İşe giriş yaparak başlayın.</div>`;
     return;
   }
-  el.innerHTML = recs.map(r => {
+  el.innerHTML = recs.map((r, idx) => {
     const t = typeLabels[r.type];
     if (!t) return '';
     const isMola = r.type === 'mola-bas' || r.type === 'mola-bit' || r.type === 'gorev-bas' || r.type === 'gorev-bit';
@@ -2500,7 +2377,8 @@ function renderTodayLog() {
     const noteHtml = (isMola && r.note && r.note.trim())
       ? `<div style="font-size:.75rem;color:var(--muted);margin-top:3px;padding-left:18px;">${r.note}</div>`
       : '';
-    return `<div class="log-item" style="${noteHtml ? 'flex-direction:column;align-items:stretch;gap:4px;' : ''}">
+    const delay = Math.min(idx * 40, 300);
+    return `<div class="log-item record-row-anim" style="${noteHtml ? 'flex-direction:column;align-items:stretch;gap:4px;' : ''}animation-delay:${delay}ms">
       <div style="display:flex;align-items:center;justify-content:space-between;width:100%;">
         <div class="log-type">
           <span class="log-badge ${t.cls}"></span>
@@ -2524,7 +2402,7 @@ function renderBreakLog() {
     el.innerHTML = `<div class="log-empty"><div class="big">🚗</div>Henüz hareket kaydı yok.</div>`;
     return;
   }
-  el.innerHTML = recs.map(r => {
+  el.innerHTML = recs.map((r, idx) => {
     const t = typeLabels[r.type];
     if (!t) return '';
     const displayName = (r.label && r.label.trim())
@@ -2533,7 +2411,8 @@ function renderBreakLog() {
     const noteHtml = (r.note && r.note.trim())
       ? `<div style="font-size:.75rem;color:var(--muted);margin-top:3px;padding-left:18px;">${r.note}</div>`
       : '';
-    return `<div class="log-item" style="flex-direction:column;align-items:stretch;gap:4px;">
+    const delay = Math.min(idx * 40, 300);
+    return `<div class="log-item record-row-anim" style="flex-direction:column;align-items:stretch;gap:4px;animation-delay:${delay}ms">
       <div style="display:flex;align-items:center;justify-content:space-between;">
         <div class="log-type">
           <span class="log-badge ${t.cls}"></span>
@@ -3247,14 +3126,96 @@ document.addEventListener('keydown', e => {
 });
 
 // ── TABS ──────────────────────────────────────────────────────
+// ── SWIPE GESTURE (Ana sekmeler arası yatay kaydırma) ────────────────────────
+(function() {
+  var TAB_ORDER = ['work', 'break', 'records', 'tracking'];
+  var swipeStartX = null;
+  var swipeStartY = null;
+  var SWIPE_MIN_X  = 55;   // px — yatay minimum mesafe
+  var SWIPE_MAX_Y  = 80;   // px — dikey maksimum sapma (yanlışlıkla scroll'u engelle)
+
+  function currentTabIndex() {
+    var active = document.querySelector('.tab-pane.active');
+    if (!active) return 0;
+    var id = active.id.replace('tab-', '');
+    var idx = TAB_ORDER.indexOf(id);
+    return idx >= 0 ? idx : 0;
+  }
+
+  function isInsideModal(el) {
+    // Modal overlay içindeyse swipe'ı iptal et
+    while (el) {
+      if (el.id && (
+        el.id.indexOf('overlay') !== -1 ||
+        el.id.indexOf('modal') !== -1 ||
+        el.id === 'settings-panel' ||
+        el.id === 'onb-overlay'
+      )) return true;
+      el = el.parentElement;
+    }
+    return false;
+  }
+
+  function isScrollableHorizontally(el) {
+    // Input, textarea veya yatay kaydırılabilir container ise swipe'ı iptal et
+    while (el && el !== document.body) {
+      var tag = el.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+      var style = window.getComputedStyle(el);
+      var overflowX = style.overflowX;
+      if ((overflowX === 'auto' || overflowX === 'scroll') && el.scrollWidth > el.clientWidth + 4) return true;
+      el = el.parentElement;
+    }
+    return false;
+  }
+
+  document.addEventListener('touchstart', function(e) {
+    if (e.touches.length !== 1) { swipeStartX = null; return; }
+    var touch = e.touches[0];
+    if (isInsideModal(touch.target) || isScrollableHorizontally(touch.target)) {
+      swipeStartX = null; return;
+    }
+    swipeStartX = touch.clientX;
+    swipeStartY = touch.clientY;
+  }, { passive: true });
+
+  document.addEventListener('touchend', function(e) {
+    if (swipeStartX === null) return;
+    var touch = e.changedTouches[0];
+    var dx = touch.clientX - swipeStartX;
+    var dy = Math.abs(touch.clientY - swipeStartY);
+    swipeStartX = null;
+
+    // Yatay hareket yeterince büyük, dikey sapma çok değil
+    if (Math.abs(dx) < SWIPE_MIN_X || dy > SWIPE_MAX_Y) return;
+
+    var idx = currentTabIndex();
+    if (dx < 0 && idx < TAB_ORDER.length - 1) {
+      // Sola kaydır → sonraki sekme
+      switchTab(TAB_ORDER[idx + 1]);
+    } else if (dx > 0 && idx > 0) {
+      // Sağa kaydır → önceki sekme
+      switchTab(TAB_ORDER[idx - 1]);
+    }
+  }, { passive: true });
+})();
+
 function switchTab(name) {
   document.querySelectorAll('.tab-btn').forEach((b,i) => {
     const names = ['work','break','records','tracking'];
     b.classList.toggle('active', names[i] === name);
   });
-  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  // Önceki aktif pane'i kaldır, yenisini animasyonla göster
+  document.querySelectorAll('.tab-pane').forEach(p => {
+    p.classList.remove('active');
+  });
   const pane = document.getElementById('tab-' + name);
-  if (pane) pane.classList.add('active');
+  if (pane) {
+    // Animasyonu sıfırla (aynı sekmeye tekrar basılınca tekrar oynar)
+    pane.classList.remove('active');
+    void pane.offsetWidth; // reflow
+    pane.classList.add('active');
+  }
   if (name === 'records') renderRecords();
 }
 
@@ -4439,7 +4400,6 @@ function getTodayTargets() {
 }
 
 updateTargetsButtonUI();
-updateSettingsNotifSub();
 
 // ── TARİH ARALIĞI RAPORU
 
@@ -7249,99 +7209,6 @@ function gameCardHoverOut(el) {
     </div>
   </div>
 </div>
-
-<!-- ══ BİLDİRİM AYARLARI MODAL ══ -->
-<div id="notif-overlay" onclick="if(event.target===this)closeNotifModal()" style="
-  display:none; position:fixed; inset:0; z-index:600;
-  background:rgba(0,0,0,.7); backdrop-filter:blur(6px);
-  align-items:center; justify-content:center; padding:1rem;
-">
-  <div style="
-    background:var(--surface); border:1px solid var(--border);
-    border-radius:18px; width:100%; max-width:420px;
-    box-shadow:0 24px 60px rgba(0,0,0,.6);
-    animation:modal-in .22s cubic-bezier(.34,1.56,.64,1);
-  " onclick="event.stopPropagation()">
-
-    <!-- Başlık -->
-    <div style="padding:1.4rem 1.5rem 1.1rem; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:12px;">
-      <span style="font-size:1.5rem;">🔔</span>
-      <div>
-        <div style="font-weight:700; font-size:1rem;">Bildirim Ayarları</div>
-        <div style="font-size:.78rem; color:var(--muted); margin-top:2px;">Hangi durumlarda bildirim gönderilsin?</div>
-      </div>
-    </div>
-
-    <!-- İzin durumu -->
-    <div style="padding:1rem 1.5rem; border-bottom:1px solid var(--border);">
-      <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
-        <div>
-          <div style="font-size:.82rem; font-weight:600;" id="notif-perm-label">Bildirim İzni</div>
-          <div style="font-size:.74rem; color:var(--muted); margin-top:2px;" id="notif-perm-sub">Durum kontrol ediliyor...</div>
-        </div>
-        <button id="notif-perm-btn" onclick="requestNotifPermission()" style="
-          background:var(--amber); border:none; border-radius:10px;
-          color:#0B1929; font-size:.82rem; font-weight:700;
-          padding:8px 16px; cursor:pointer; transition:opacity .15s; white-space:nowrap;
-        ">İzin Ver</button>
-      </div>
-    </div>
-
-    <!-- Toggle listesi -->
-    <div style="padding:.75rem 1.5rem; display:flex; flex-direction:column; gap:0;">
-
-      <div style="display:flex; align-items:center; justify-content:space-between; padding:.7rem 0; border-bottom:1px solid var(--border);">
-        <div>
-          <div style="font-size:.85rem; font-weight:600;">🎯 Hedef Tamamlandı</div>
-          <div style="font-size:.74rem; color:var(--muted); margin-top:2px;">Mesai hedefine ulaşınca bildir</div>
-        </div>
-        <label style="position:relative; display:inline-block; width:42px; height:24px; flex-shrink:0;">
-          <input type="checkbox" id="notif-toggle-goal" onchange="saveNotifSettings()" style="opacity:0;width:0;height:0;">
-          <span onclick="document.getElementById('notif-toggle-goal').click()" style="
-            position:absolute; inset:0; background:var(--border); border-radius:24px; cursor:pointer; transition:.2s;
-          " id="notif-slider-goal"></span>
-        </label>
-      </div>
-
-      <div style="display:flex; align-items:center; justify-content:space-between; padding:.7rem 0; border-bottom:1px solid var(--border);">
-        <div>
-          <div style="font-size:.85rem; font-weight:600;">☕ Mola Uyarısı — 15 dk</div>
-          <div style="font-size:.74rem; color:var(--muted); margin-top:2px;">Mola 15 dakikayı geçince uyar</div>
-        </div>
-        <label style="position:relative; display:inline-block; width:42px; height:24px; flex-shrink:0;">
-          <input type="checkbox" id="notif-toggle-break15" onchange="saveNotifSettings()" style="opacity:0;width:0;height:0;">
-          <span onclick="document.getElementById('notif-toggle-break15').click()" style="
-            position:absolute; inset:0; background:var(--border); border-radius:24px; cursor:pointer; transition:.2s;
-          " id="notif-slider-break15"></span>
-        </label>
-      </div>
-
-      <div style="display:flex; align-items:center; justify-content:space-between; padding:.7rem 0;">
-        <div>
-          <div style="font-size:.85rem; font-weight:600;">☕ Mola Uyarısı — 45 dk</div>
-          <div style="font-size:.74rem; color:var(--muted); margin-top:2px;">Mola 45 dakikayı geçince uyar</div>
-        </div>
-        <label style="position:relative; display:inline-block; width:42px; height:24px; flex-shrink:0;">
-          <input type="checkbox" id="notif-toggle-break45" onchange="saveNotifSettings()" style="opacity:0;width:0;height:0;">
-          <span onclick="document.getElementById('notif-toggle-break45').click()" style="
-            position:absolute; inset:0; background:var(--border); border-radius:24px; cursor:pointer; transition:.2s;
-          " id="notif-slider-break45"></span>
-        </label>
-      </div>
-
-    </div>
-
-    <!-- Kapat -->
-    <div style="padding:.75rem 1.5rem 1.4rem; display:flex; justify-content:flex-end; border-top:1px solid var(--border);">
-      <button onclick="closeNotifModal()" style="
-        background:var(--panel); border:1px solid var(--border); border-radius:10px;
-        color:var(--text); font-size:.88rem; font-weight:600;
-        padding:10px 20px; cursor:pointer; transition:all .15s;
-      ">✕ Kapat</button>
-    </div>
-  </div>
-</div>
-
 <!-- ══ AKILLI ANALİZ MODAL ══ -->
 <div id="analiz-overlay" onclick="if(event.target===this)closeAnalizModal()" style="
   display:none; position:fixed; inset:0; z-index:9200;
@@ -7967,6 +7834,404 @@ function buildOfflineAnaliz(data, period) {
   return maddeler.map(function(m) { return '• ' + m; }).join('\n\n');
 }
 </script>
+
+<script>
+// ── TANITIM (ONBOARDING) ──────────────────────────────────────────────────────
+
+var ONB_SLIDES = [
+  {
+    title: "Lüfer Mesai Takip'e\nHoş Geldiniz 👋",
+    desc:  "Mesai saatlerinizi, molalarınızı ve görev sürelerinizi kolayca takip edin. Bu kısa tur uygulamayı tanıtacak.",
+    illus: function() {
+      return '<svg viewBox="0 0 200 180" fill="none" xmlns="http://www.w3.org/2000/svg">'
+        // Dalga arka plan
+        + '<ellipse cx="100" cy="160" rx="90" ry="18" fill="rgba(245,166,35,.1)"/>'
+        // Saat dairesi
+        + '<circle cx="100" cy="82" r="58" fill="rgba(245,166,35,.12)" stroke="rgba(245,166,35,.5)" stroke-width="2.5"/>'
+        + '<circle cx="100" cy="82" r="48" fill="rgba(15,34,53,.8)"/>'
+        // Saat çizgileri
+        + '<line x1="100" y1="40" x2="100" y2="48" stroke="rgba(245,166,35,.5)" stroke-width="2" stroke-linecap="round"/>'
+        + '<line x1="100" y1="116" x2="100" y2="124" stroke="rgba(245,166,35,.5)" stroke-width="2" stroke-linecap="round"/>'
+        + '<line x1="58" y1="82" x2="66" y2="82" stroke="rgba(245,166,35,.5)" stroke-width="2" stroke-linecap="round"/>'
+        + '<line x1="134" y1="82" x2="142" y2="82" stroke="rgba(245,166,35,.5)" stroke-width="2" stroke-linecap="round"/>'
+        // Saatin kolları
+        + '<line x1="100" y1="82" x2="100" y2="56" stroke="#F5A623" stroke-width="3" stroke-linecap="round"/>'
+        + '<line x1="100" y1="82" x2="118" y2="90" stroke="rgba(245,166,35,.7)" stroke-width="2.5" stroke-linecap="round"/>'
+        // Merkez nokta
+        + '<circle cx="100" cy="82" r="4" fill="#F5A623"/>'
+        // Animasyonlu dış halka
+        + '<circle cx="100" cy="82" r="62" stroke="rgba(245,166,35,.25)" stroke-width="1.5" stroke-dasharray="8 4">'
+        + '<animateTransform attributeName="transform" type="rotate" from="0 100 82" to="360 100 82" dur="12s" repeatCount="indefinite"/>'
+        + '</circle>'
+        // Alt yıldızlar
+        + '<circle cx="28" cy="48" r="2.5" fill="rgba(245,166,35,.6)"><animate attributeName="opacity" values="0.4;1;0.4" dur="2.5s" repeatCount="indefinite"/></circle>'
+        + '<circle cx="172" cy="32" r="2" fill="rgba(245,166,35,.5)"><animate attributeName="opacity" values="1;0.3;1" dur="1.8s" repeatCount="indefinite"/></circle>'
+        + '<circle cx="162" cy="130" r="1.8" fill="rgba(245,166,35,.4)"><animate attributeName="opacity" values="0.5;1;0.5" dur="3s" repeatCount="indefinite"/></circle>'
+        + '</svg>';
+    }
+  },
+  {
+    title: "İşe Giriş &\nİşten Çıkış ✅",
+    desc:  "\"İşe Giriş\" butonuna basarak mesainizi başlatın, \"İşten Çıkış\" ile bitirin. Geçen süre ve tahmini çıkış saati anlık olarak güncellenir.",
+    illus: function() {
+      return '<svg viewBox="0 0 200 180" fill="none" xmlns="http://www.w3.org/2000/svg">'
+        + '<ellipse cx="100" cy="162" rx="85" ry="14" fill="rgba(245,166,35,.08)"/>'
+        // Kart
+        + '<rect x="30" y="30" width="140" height="115" rx="16" fill="rgba(15,34,53,.9)" stroke="rgba(245,166,35,.3)" stroke-width="1.5"/>'
+        // Durum badge
+        + '<rect x="55" y="48" width="90" height="24" rx="12" fill="rgba(245,166,35,.18)" stroke="rgba(245,166,35,.5)" stroke-width="1"/>'
+        + '<circle cx="73" cy="60" r="4" fill="#F5A623"><animate attributeName="r" values="3.5;5;3.5" dur="1.5s" repeatCount="indefinite"/></circle>'
+        + '<text x="83" y="64" font-size="10" fill="#F5A623" font-weight="700" font-family="system-ui">Çalışıyor</text>'
+        // Kronometre
+        + '<text x="100" y="98" font-size="22" fill="white" font-weight="800" text-anchor="middle" font-family="monospace">08:43:21</text>'
+        // Giriş butonu
+        + '<rect x="44" y="112" width="112" height="22" rx="11" fill="rgba(245,166,35,.9)"/>'
+        + '<text x="100" y="127" font-size="9.5" fill="#0B1929" font-weight="800" text-anchor="middle" font-family="system-ui">✅ İşe Giriş</text>'
+        // Ok animasyonu
+        + '<g opacity="0">'
+        + '<circle cx="165" cy="60" r="12" fill="rgba(245,166,35,.2)"/>'
+        + '<text x="165" y="64" font-size="12" text-anchor="middle">→</text>'
+        + '<animate attributeName="opacity" values="0;1;0" dur="2s" repeatCount="indefinite"/>'
+        + '</g>'
+        + '</svg>';
+    }
+  },
+  {
+    title: "Mola & Görev\nTakibi ☕🚗",
+    desc:  "Molaya çıktığınızda mola sayacı, saha/görev çıkışlarınızda görev sayacı devreye girer. Hareketler sekmesinden tüm hareketleri görebilirsiniz.",
+    illus: function() {
+      return '<svg viewBox="0 0 200 180" fill="none" xmlns="http://www.w3.org/2000/svg">'
+        + '<ellipse cx="100" cy="162" rx="80" ry="12" fill="rgba(100,185,100,.07)"/>'
+        // Mola kartı
+        + '<rect x="20" y="25" width="75" height="70" rx="12" fill="rgba(15,34,53,.9)" stroke="rgba(100,185,100,.4)" stroke-width="1.5"/>'
+        + '<text x="57" y="50" text-anchor="middle" font-size="18">☕</text>'
+        + '<text x="57" y="67" text-anchor="middle" font-size="9" fill="rgba(100,185,100,.9)" font-weight="700" font-family="system-ui">MOLA</text>'
+        + '<text x="57" y="83" text-anchor="middle" font-size="13" fill="white" font-weight="800" font-family="monospace">00:28</text>'
+        // Görev kartı
+        + '<rect x="105" y="25" width="75" height="70" rx="12" fill="rgba(15,34,53,.9)" stroke="rgba(109,164,224,.4)" stroke-width="1.5"/>'
+        + '<text x="142" y="50" text-anchor="middle" font-size="18">🚗</text>'
+        + '<text x="142" y="67" text-anchor="middle" font-size="9" fill="rgba(109,164,224,.9)" font-weight="700" font-family="system-ui">GÖREV</text>'
+        + '<text x="142" y="83" text-anchor="middle" font-size="13" fill="white" font-weight="800" font-family="monospace">01:15</text>'
+        // Çizgi aşağı
+        + '<line x1="57" y1="95" x2="57" y2="115" stroke="rgba(100,185,100,.3)" stroke-width="1.5" stroke-dasharray="4 3"/>'
+        + '<line x1="142" y1="95" x2="142" y2="115" stroke="rgba(109,164,224,.3)" stroke-width="1.5" stroke-dasharray="4 3"/>'
+        // Birleşme
+        + '<line x1="57" y1="115" x2="142" y2="115" stroke="rgba(245,166,35,.3)" stroke-width="1.5"/>'
+        + '<line x1="100" y1="115" x2="100" y2="130" stroke="rgba(245,166,35,.4)" stroke-width="1.5"/>'
+        + '<rect x="65" y="130" width="70" height="22" rx="8" fill="rgba(245,166,35,.15)" stroke="rgba(245,166,35,.4)" stroke-width="1"/>'
+        + '<text x="100" y="145" text-anchor="middle" font-size="9" fill="#F5A623" font-weight="700" font-family="system-ui">Net: 07:17</text>'
+        + '</svg>';
+    }
+  },
+  {
+    title: "Kayıtlar &\nRaporlar 📋",
+    desc:  "Kayıtlar sekmesinden takvim üzerinde günlük istatistiklerinizi görün. Tarih Aralığı Raporu ile istediğiniz dönemi detaylıca analiz edin.",
+    illus: function() {
+      return '<svg viewBox="0 0 200 180" fill="none" xmlns="http://www.w3.org/2000/svg">'
+        + '<ellipse cx="100" cy="165" rx="82" ry="12" fill="rgba(109,164,224,.08)"/>'
+        // Takvim ana çerçeve
+        + '<rect x="25" y="20" width="150" height="125" rx="14" fill="rgba(15,34,53,.9)" stroke="rgba(109,164,224,.3)" stroke-width="1.5"/>'
+        // Başlık bandı
+        + '<rect x="25" y="20" width="150" height="28" rx="14" fill="rgba(109,164,224,.2)"/>'
+        + '<rect x="25" y="33" width="150" height="15" fill="rgba(109,164,224,.2)"/>'
+        + '<text x="100" y="38" text-anchor="middle" font-size="10" fill="rgba(109,164,224,.9)" font-weight="700" font-family="system-ui">Haziran 2025</text>'
+        // Gün hücreleri
+        + [
+            [38,62,'P'],[62,62,'S'],[86,62,'Ç'],[110,62,'P'],[134,62,'C'],[158,62,'C','amber'],
+            [38,82,'2'],[62,82,'3'],[86,82,'4'],[110,82,'5'],[134,82,'6'],[158,82,'7'],
+            [38,102,'9'],[62,102,'10','selected'],[86,102,'11'],[110,102,'12'],[134,102,'13'],[158,102,'14'],
+            [38,122,'16'],[62,122,'17'],[86,122,'18'],[110,122,'19','today'],[134,122,'20'],[158,122,'21'],
+          ].map(function(c) {
+            var x=c[0], y=c[1], t=c[2], type=c[3];
+            var fill = type==='selected' ? 'rgba(245,166,35,.9)' : type==='today' ? 'rgba(245,166,35,.25)' : 'none';
+            var stroke = type==='today' ? 'rgba(245,166,35,.6)' : 'none';
+            var textFill = type==='selected' ? '#0B1929' : type==='amber' ? 'rgba(245,166,35,.7)' : 'rgba(255,255,255,.75)';
+            return (type==='selected' || type==='today' ? '<circle cx="'+x+'" cy="'+(y-3)+'" r="10" fill="'+fill+'" stroke="'+stroke+'" stroke-width="1"/>' : '')
+              + '<text x="'+x+'" y="'+y+'" text-anchor="middle" font-size="9" fill="'+textFill+'" font-family="system-ui"'+
+              (type==='selected'||type==='today'?' font-weight="800"':'')+'>'+t+'</text>'
+              + (type!=='P'&&type!=='S'&&type!=='Ç'&&type!=='C' && Math.random()>.5 ? '<circle cx="'+x+'" cy="'+(y+5)+'" r="1.8" fill="rgba(245,166,35,.6)"/>' : '');
+          }).join('')
+        + '</svg>';
+    }
+  },
+  {
+    title: "Akıllı Analiz\n& Ajanda 🧠📋",
+    desc:  "FAB butonuyla (sol alt) Akıllı Analiz'den çalışma alışkanlıklarınızı öğrenin, Ajanda'ya günlük iş notlarınızı kategorilerle kaydedin.",
+    illus: function() {
+      return '<svg viewBox="0 0 200 180" fill="none" xmlns="http://www.w3.org/2000/svg">'
+        + '<ellipse cx="100" cy="165" rx="80" ry="12" fill="rgba(245,166,35,.07)"/>'
+        // Sol panel - Analiz
+        + '<rect x="15" y="25" width="82" height="120" rx="12" fill="rgba(15,34,53,.9)" stroke="rgba(245,166,35,.3)" stroke-width="1.5"/>'
+        + '<text x="56" y="48" text-anchor="middle" font-size="16">🧠</text>'
+        + '<text x="56" y="62" text-anchor="middle" font-size="8.5" fill="#F5A623" font-weight="700" font-family="system-ui">AKILLI ANALİZ</text>'
+        // Analiz barlar
+        + ['Bu hafta','Ort. giriş','En verimli'].map(function(t, i) {
+            var y = 78 + i * 18;
+            var w = [72, 55, 64][i];
+            return '<rect x="24" y="'+(y-8)+'" width="'+(w*.9)+'" height="8" rx="4" fill="rgba(245,166,35,'+(0.2+i*.15)+')"/>'
+              + '<text x="24" y="'+(y)+'" font-size="6.5" fill="rgba(255,255,255,.5)" font-family="system-ui">'+t+'</text>';
+          }).join('')
+        + '<text x="56" y="135" text-anchor="middle" font-size="7.5" fill="rgba(255,255,255,.4)" font-family="system-ui">• İstikrarlı tempo</text>'
+        // Sağ panel - Ajanda
+        + '<rect x="103" y="25" width="82" height="120" rx="12" fill="rgba(15,34,53,.9)" stroke="rgba(109,164,224,.3)" stroke-width="1.5"/>'
+        + '<text x="144" y="48" text-anchor="middle" font-size="16">📋</text>'
+        + '<text x="144" y="62" text-anchor="middle" font-size="8.5" fill="#6DA4E0" font-weight="700" font-family="system-ui">AJANDA</text>'
+        + ['🤝 Toplantı','🚗 Saha','📝 Rapor'].map(function(t, i) {
+            var y = 78 + i * 18;
+            var colors = ['rgba(109,164,224,.5)','rgba(245,166,35,.5)','rgba(244,114,182,.5)'];
+            return '<rect x="110" y="'+(y-8)+'" width="68" height="11" rx="5.5" fill="'+colors[i]+'" opacity="0.5"/>'
+              + '<text x="114" y="'+(y)+'" font-size="7.5" fill="rgba(255,255,255,.8)" font-family="system-ui">'+t+'</text>';
+          }).join('')
+        // FAB butonu
+        + '<circle cx="100" cy="158" r="14" fill="rgba(15,34,53,.95)" stroke="rgba(245,166,35,.6)" stroke-width="1.5"/>'
+        + '<text x="100" y="163" text-anchor="middle" font-size="12">＋</text>'
+        + '<circle cx="100" cy="158" r="18" stroke="rgba(245,166,35,.2)" stroke-width="1.5" stroke-dasharray="5 3">'
+        + '<animateTransform attributeName="transform" type="rotate" from="0 100 158" to="360 100 158" dur="8s" repeatCount="indefinite"/>'
+        + '</circle>'
+        + '</svg>';
+    }
+  },
+  {
+    title: "Mesai Saatlerini\nAyarlayın 🕐",
+    desc:  "Ayarlar ⚙️ → \"Mesai Saatlerini Ayarla\" ile işe giriş/çıkış saatlerinizi ve hangi günler çalıştığınızı tanımlayın. Bu bilgi takvim ve raporlarda kullanılır.",
+    illus: function() {
+      return '<svg viewBox="0 0 200 180" fill="none" xmlns="http://www.w3.org/2000/svg">'
+        + '<ellipse cx="100" cy="165" rx="82" ry="12" fill="rgba(109,164,224,.08)"/>'
+        // Ayarlar butonu - üst sağ
+        + '<rect x="140" y="18" width="46" height="22" rx="11" fill="rgba(245,166,35,.2)" stroke="rgba(245,166,35,.5)" stroke-width="1"/>'
+        + '<text x="163" y="33" text-anchor="middle" font-size="10">⚙️</text>'
+        // Ok aşağı
+        + '<line x1="163" y1="42" x2="163" y2="54" stroke="rgba(245,166,35,.5)" stroke-width="1.5" stroke-dasharray="3 2"/>'
+        + '<polygon points="159,54 167,54 163,59" fill="rgba(245,166,35,.5)"/>'
+        // Panel
+        + '<rect x="22" y="35" width="156" height="112" rx="13" fill="rgba(15,34,53,.95)" stroke="rgba(109,164,224,.35)" stroke-width="1.5"/>'
+        + '<text x="100" y="55" text-anchor="middle" font-size="9.5" fill="rgba(109,164,224,.9)" font-weight="700" font-family="system-ui">MESAİ SAATLERİ</text>'
+        // Giriş saati satırı
+        + '<rect x="34" y="62" width="132" height="20" rx="7" fill="rgba(255,255,255,.05)" stroke="rgba(255,255,255,.08)" stroke-width="1"/>'
+        + '<text x="44" y="76" font-size="8.5" fill="rgba(255,255,255,.6)" font-family="system-ui">İşe Giriş</text>'
+        + '<rect x="122" y="65" width="36" height="14" rx="6" fill="rgba(245,166,35,.25)" stroke="rgba(245,166,35,.5)" stroke-width="1"/>'
+        + '<text x="140" y="75" text-anchor="middle" font-size="8.5" fill="#F5A623" font-weight="700" font-family="monospace">08:00</text>'
+        // Çıkış saati satırı
+        + '<rect x="34" y="88" width="132" height="20" rx="7" fill="rgba(255,255,255,.05)" stroke="rgba(255,255,255,.08)" stroke-width="1"/>'
+        + '<text x="44" y="102" font-size="8.5" fill="rgba(255,255,255,.6)" font-family="system-ui">İşten Çıkış</text>'
+        + '<rect x="122" y="91" width="36" height="14" rx="6" fill="rgba(245,166,35,.25)" stroke="rgba(245,166,35,.5)" stroke-width="1"/>'
+        + '<text x="140" y="101" text-anchor="middle" font-size="8.5" fill="#F5A623" font-weight="700" font-family="monospace">17:00</text>'
+        // Çalışma günleri
+        + '<text x="34" y="122" font-size="8" fill="rgba(255,255,255,.45)" font-family="system-ui">Çalışma Günleri</text>'
+        + ['P','S','Ç','P','C'].map(function(g, i) {
+            var x = 34 + i * 22;
+            return '<rect x="'+x+'" y="126" width="16" height="16" rx="5" fill="rgba(245,166,35,.3)" stroke="rgba(245,166,35,.6)" stroke-width="1"/>'
+              + '<text x="'+(x+8)+'" y="138" text-anchor="middle" font-size="8" fill="#F5A623" font-weight="700" font-family="system-ui">'+g+'</text>';
+          }).join('')
+        + ['C','P'].map(function(g, i) {
+            var x = 144 + i * 22;
+            return '<rect x="'+x+'" y="126" width="16" height="16" rx="5" fill="rgba(255,255,255,.05)" stroke="rgba(255,255,255,.1)" stroke-width="1"/>'
+              + '<text x="'+(x+8)+'" y="138" text-anchor="middle" font-size="8" fill="rgba(255,255,255,.3)" font-family="system-ui">'+g+'</text>';
+          }).join('')
+        + '</svg>';
+    }
+  },
+  {
+    title: "Hedef Saatleri\nBelirleyin 🎯",
+    desc:  "Ayarlar ⚙️ → \"Hedef Saatleri Ayarla\" ile günlük net çalışma ve mola hedeflerinizi girin. Hedef ilerleme çubuğu ve tahmini çıkış saati bu bilgilere göre hesaplanır.",
+    illus: function() {
+      return '<svg viewBox="0 0 200 180" fill="none" xmlns="http://www.w3.org/2000/svg">'
+        + '<ellipse cx="100" cy="165" rx="82" ry="12" fill="rgba(100,185,100,.07)"/>'
+        // Panel
+        + '<rect x="22" y="22" width="156" height="128" rx="13" fill="rgba(15,34,53,.95)" stroke="rgba(100,185,100,.35)" stroke-width="1.5"/>'
+        + '<text x="100" y="42" text-anchor="middle" font-size="9.5" fill="rgba(100,185,100,.9)" font-weight="700" font-family="system-ui">🎯 GÜNLÜK HEDEFLER</text>'
+        // Net çalışma hedefi
+        + '<text x="34" y="60" font-size="8" fill="rgba(255,255,255,.45)" font-family="system-ui">Net Çalışma Hedefi</text>'
+        + '<rect x="34" y="64" width="132" height="20" rx="7" fill="rgba(255,255,255,.05)" stroke="rgba(255,255,255,.08)" stroke-width="1"/>'
+        + '<rect x="106" y="67" width="52" height="14" rx="6" fill="rgba(100,185,100,.2)" stroke="rgba(100,185,100,.5)" stroke-width="1"/>'
+        + '<text x="132" y="77" text-anchor="middle" font-size="8.5" fill="#64b964" font-weight="700" font-family="monospace">08:00</text>'
+        // Mola hedefi
+        + '<text x="34" y="95" font-size="8" fill="rgba(255,255,255,.45)" font-family="system-ui">Mola Hedefi</text>'
+        + '<rect x="34" y="99" width="132" height="20" rx="7" fill="rgba(255,255,255,.05)" stroke="rgba(255,255,255,.08)" stroke-width="1"/>'
+        + '<rect x="106" y="102" width="52" height="14" rx="6" fill="rgba(245,166,35,.2)" stroke="rgba(245,166,35,.5)" stroke-width="1"/>'
+        + '<text x="132" y="112" text-anchor="middle" font-size="8.5" fill="#F5A623" font-weight="700" font-family="monospace">00:30</text>'
+        // İlerleme çubuğu gösterimi
+        + '<text x="34" y="133" font-size="8" fill="rgba(255,255,255,.45)" font-family="system-ui">Günlük ilerleme</text>'
+        + '<rect x="34" y="137" width="132" height="10" rx="5" fill="rgba(255,255,255,.08)"/>'
+        + '<rect x="34" y="137" width="99" height="10" rx="5" fill="rgba(100,185,100,.7)">'
+        + '<animate attributeName="width" from="0" to="99" dur="1.2s" fill="freeze"/>'
+        + '</rect>'
+        + '<text x="170" y="146" text-anchor="middle" font-size="8" fill="rgba(100,185,100,.9)" font-weight="700" font-family="monospace">%75</text>'
+        // Tahmini çıkış
+        + '<rect x="34" y="152" width="132" height="0" rx="6" fill="none"/>'
+        + '<text x="34" y="154" font-size="7.5" fill="rgba(255,255,255,.35)" font-family="system-ui">⏳ Tahmini çıkış</text>'
+        + '<text x="170" y="154" text-anchor="end" font-size="7.5" fill="rgba(245,166,35,.8)" font-weight="700" font-family="monospace">16:37</text>'
+        + '</svg>';
+    }
+  },
+  {
+    title: "Hazırsınız! 🚀",
+    desc:  "Uygulamanızı kullanmaya başlayabilirsiniz. İyi çalışmalar!",
+    illus: function() {
+      return '<svg viewBox="0 0 200 180" fill="none" xmlns="http://www.w3.org/2000/svg">'
+        + '<ellipse cx="100" cy="160" rx="85" ry="16" fill="rgba(245,166,35,.1)"/>'
+        // Merkez daire - onay
+        + '<circle cx="100" cy="80" r="55" fill="rgba(245,166,35,.1)" stroke="rgba(245,166,35,.35)" stroke-width="2"/>'
+        + '<circle cx="100" cy="80" r="42" fill="rgba(245,166,35,.15)"/>'
+        + '<path d="M76 80 L92 96 L124 64" stroke="#F5A623" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none">'
+        + '<animate attributeName="stroke-dasharray" from="0 80" to="80 0" dur="0.8s" fill="freeze"/>'
+        + '</path>'
+        // Dışarıya akan yıldızlar
+        + '<circle cx="36" cy="40" r="3.5" fill="#F5A623" opacity="0"><animate attributeName="opacity" values="0;1;0" dur="2s" begin="0.8s" repeatCount="indefinite"/></circle>'
+        + '<circle cx="164" cy="35" r="2.5" fill="#F5A623" opacity="0"><animate attributeName="opacity" values="0;1;0" dur="2.3s" begin="1s" repeatCount="indefinite"/></circle>'
+        + '<circle cx="165" cy="125" r="3" fill="#F5A623" opacity="0"><animate attributeName="opacity" values="0;1;0" dur="1.8s" begin="1.2s" repeatCount="indefinite"/></circle>'
+        + '<circle cx="35" cy="120" r="2" fill="#F5A623" opacity="0"><animate attributeName="opacity" values="0;1;0" dur="2.5s" begin="0.9s" repeatCount="indefinite"/></circle>'
+        // Dönen dış çizgi
+        + '<circle cx="100" cy="80" r="62" stroke="rgba(245,166,35,.2)" stroke-width="1.5" stroke-dasharray="6 5">'
+        + '<animateTransform attributeName="transform" type="rotate" from="0 100 80" to="360 100 80" dur="15s" repeatCount="indefinite"/>'
+        + '</circle>'
+        + '</svg>';
+    }
+  }
+];
+
+var onbCurrent = 0;
+
+function onbShow(idx) {
+  var slide = ONB_SLIDES[idx];
+  onbCurrent = idx;
+  var total = ONB_SLIDES.length;
+
+  // İllüstrasyon
+  document.getElementById('onb-illus').innerHTML = slide.illus();
+
+  // Başlık — satır kesmesini destekle
+  document.getElementById('onb-title').innerHTML = slide.title.replace(/\n/g, '<br>');
+
+  // Açıklama
+  document.getElementById('onb-desc').textContent = slide.desc;
+
+  // Noktalar
+  var dotsHtml = '';
+  for (var i = 0; i < total; i++) {
+    dotsHtml += '<div style="'
+      + 'width:' + (i === idx ? '22px' : '7px') + '; height:7px; border-radius:20px;'
+      + 'background:' + (i === idx ? 'var(--amber)' : 'rgba(255,255,255,.2)') + ';'
+      + 'transition:all .3s; cursor:pointer;"'
+      + ' onclick="onbShow(' + i + ')"></div>';
+  }
+  document.getElementById('onb-dots').innerHTML = dotsHtml;
+
+  // Geri butonu
+  var prevBtn = document.getElementById('onb-prev-btn');
+  prevBtn.style.display = idx > 0 ? 'block' : 'none';
+
+  // İleri / Başla butonu
+  var nextBtn = document.getElementById('onb-next-btn');
+  var isLast = idx === total - 1;
+  nextBtn.textContent = isLast ? '🚀 Başla!' : 'İleri →';
+  nextBtn.style.fontSize = isLast ? '1rem' : '.95rem';
+
+  // Atla butonu son slayta gizle
+  document.getElementById('onb-skip-btn').style.display = isLast ? 'none' : 'block';
+}
+
+function onbNext() {
+  if (onbCurrent < ONB_SLIDES.length - 1) {
+    onbShow(onbCurrent + 1);
+  } else {
+    onbClose();
+  }
+}
+
+function onbPrev() {
+  if (onbCurrent > 0) onbShow(onbCurrent - 1);
+}
+
+function onbClose() {
+  document.getElementById('onb-overlay').style.display = 'none';
+  try { localStorage.setItem('lufer_onboarding_done', '1'); } catch(e) {}
+}
+
+function onbOpen() {
+  document.getElementById('onb-overlay').style.display = 'flex';
+  onbShow(0);
+}
+
+// Ayarlar panelinde "Tanıtımı Tekrar Göster" seçeneğini aç
+function showOnboardingAgain() {
+  var sp = document.getElementById('settings-panel');
+  if (sp) sp.style.display = 'none';
+  onbOpen();
+}
+
+// İlk açılış kontrolü — localStorage'da kayıt yoksa göster
+(function() {
+  try {
+    var done = localStorage.getItem('lufer_onboarding_done');
+    if (!done) {
+      // Sayfa tamamen yüklendikten sonra göster
+      window.addEventListener('load', function() {
+        setTimeout(onbOpen, 600);
+      });
+    }
+  } catch(e) {}
+})();
+</script>
+
+<div id="onb-overlay" style="
+  display:none; position:fixed; inset:0; z-index:9000;
+  background:rgba(11,25,41,.97); backdrop-filter:blur(8px);
+  flex-direction:column; align-items:center; justify-content:center;
+  padding:1.5rem 1rem;
+">
+  <!-- Kapat (atla) -->
+  <button onclick="onbClose()" id="onb-skip-btn" style="
+    position:absolute; top:1.25rem; right:1.25rem;
+    background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.15);
+    color:rgba(255,255,255,.55); border-radius:20px;
+    font-size:.78rem; font-weight:600; padding:5px 14px; cursor:pointer;
+    transition:all .15s;
+  ">Atla</button>
+
+  <!-- Slayt alanı -->
+  <div id="onb-slide" style="
+    width:100%; max-width:420px; text-align:center;
+    display:flex; flex-direction:column; align-items:center; gap:0;
+  ">
+    <!-- İllüstrasyon alanı -->
+    <div id="onb-illus" style="width:200px; height:180px; margin-bottom:1.5rem;"></div>
+
+    <!-- Başlık -->
+    <div id="onb-title" style="
+      font-size:1.35rem; font-weight:800; color:#fff;
+      line-height:1.25; margin-bottom:.75rem;
+    "></div>
+
+    <!-- Açıklama -->
+    <div id="onb-desc" style="
+      font-size:.9rem; color:rgba(255,255,255,.65);
+      line-height:1.65; max-width:340px;
+    "></div>
+  </div>
+
+  <!-- Nokta göstergesi -->
+  <div id="onb-dots" style="
+    display:flex; gap:8px; margin-top:2.5rem;
+  "></div>
+
+  <!-- Butonlar -->
+  <div style="
+    display:flex; gap:.75rem; margin-top:1.75rem; width:100%; max-width:420px;
+  ">
+    <button id="onb-prev-btn" onclick="onbPrev()" style="
+      flex:0 0 auto; background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.15);
+      color:#fff; border-radius:12px; padding:13px 20px; cursor:pointer;
+      font-size:.88rem; font-weight:600; transition:all .15s; display:none;
+    ">‹ Geri</button>
+    <button id="onb-next-btn" onclick="onbNext()" style="
+      flex:1; background:var(--amber); border:none;
+      color:#0B1929; border-radius:12px; padding:13px;
+      cursor:pointer; font-size:.95rem; font-weight:800;
+      transition:all .15s; letter-spacing:.3px;
+    ">İleri →</button>
+  </div>
+</div>
 
 </body>
 </html>
