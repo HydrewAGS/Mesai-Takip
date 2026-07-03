@@ -5752,26 +5752,327 @@ document.addEventListener('click', function(e) {
         </span>
       </div>
 
-      <!-- Yakında gelecek -->
-      <div style="
-        display:flex; align-items:center; gap:14px;
-        padding:1rem 1.1rem; border-radius:14px; border:1px dashed var(--border);
-        opacity:.45; user-select:none;
-      ">
-        <div style="
+      <!-- Yılan Oyunu -->
+      <div id="game-card-snake"
+        onclick="gameCardSnakeClick()"
+        style="
+          display:flex; align-items:center; gap:14px;
+          padding:1rem 1.1rem; border-radius:14px; border:1px solid var(--border);
+          background:var(--panel); cursor:pointer; margin-bottom:.75rem;
+          transition:border-color .15s, background .15s, opacity .2s;
+        "
+        onmouseenter="gameCardHoverIn(this)"
+        onmouseleave="gameCardHoverOut(this)">
+        <div id="game-card-snake-icon" style="
           width:52px; height:52px; border-radius:12px; flex-shrink:0;
-          background:var(--panel);
-          display:flex; align-items:center; justify-content:center;
-        ">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          background:linear-gradient(135deg,#0f3320,#0b1929);
+          display:flex; align-items:center; justify-content:center; font-size:1.8rem;
+        ">🐍</div>
+        <div style="flex:1; min-width:0;">
+          <div style="font-weight:700; font-size:.93rem; margin-bottom:3px;">Yılan</div>
+          <div style="font-size:.75rem; color:var(--muted); line-height:1.5;">Yemi ye, büyü, duvara çarpma!<br>Ok tuşları veya ekrana kaydır.</div>
         </div>
-        <div style="flex:1;">
-          <div style="font-weight:700; font-size:.93rem; margin-bottom:3px;">Yakında…</div>
-          <div style="font-size:.75rem; color:var(--muted);">Yeni oyunlar yolda.</div>
+        <span id="game-card-snake-arrow">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="9 18 15 12 9 6"/></svg>
+        </span>
+      </div>
+
+      <!-- Refleks Testi -->
+      <div id="game-card-reflex"
+        onclick="gameCardReflexClick()"
+        style="
+          display:flex; align-items:center; gap:14px;
+          padding:1rem 1.1rem; border-radius:14px; border:1px solid var(--border);
+          background:var(--panel); cursor:pointer; margin-bottom:.75rem;
+          transition:border-color .15s, background .15s, opacity .2s;
+        "
+        onmouseenter="gameCardHoverIn(this)"
+        onmouseleave="gameCardHoverOut(this)">
+        <div id="game-card-reflex-icon" style="
+          width:52px; height:52px; border-radius:12px; flex-shrink:0;
+          background:linear-gradient(135deg,#3b1a5c,#0b1929);
+          display:flex; align-items:center; justify-content:center; font-size:1.8rem;
+        ">⚡</div>
+        <div style="flex:1; min-width:0;">
+          <div style="font-weight:700; font-size:.93rem; margin-bottom:3px;">Refleks Testi</div>
+          <div style="font-size:.75rem; color:var(--muted); line-height:1.5;">Doğru renk & şekle hızla dokun!<br>3 can · 5 seviye · zaman baskısı</div>
         </div>
+        <span id="game-card-reflex-arrow">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="9 18 15 12 9 6"/></svg>
+        </span>
+      </div>
+
+      <!-- Satranç -->
+      <div id="game-card-chess"
+        onclick="gameCardChessClick()"
+        style="display:flex; align-items:center; gap:14px;
+          padding:1rem 1.1rem; border-radius:14px; border:1px solid var(--border);
+          background:var(--panel); cursor:pointer; margin-bottom:.75rem;
+          transition:border-color .15s, background .15s, opacity .2s;"
+        onmouseenter="gameCardHoverIn(this)"
+        onmouseleave="gameCardHoverOut(this)">
+        <div id="game-card-chess-icon" style="
+          width:52px; height:52px; border-radius:12px; flex-shrink:0;
+          background:linear-gradient(135deg,#1a1a2e,#16213e);
+          display:flex; align-items:center; justify-content:center; font-size:1.8rem;">♟️</div>
+        <div style="flex:1; min-width:0;">
+          <div style="font-weight:700; font-size:.93rem; margin-bottom:3px;">Satranç</div>
+          <div style="font-size:.75rem; color:var(--muted); line-height:1.5;">Yapay zekaya karşı oyna!<br>Kolay · Orta · Zor seçeneği</div>
+        </div>
+        <span id="game-card-chess-arrow">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="9 18 15 12 9 6"/></svg>
+        </span>
       </div>
 
     </div>
+  </div>
+</div>
+
+<!-- ══ SATRANÇ OYUNU — MODAL ══ -->
+<div id="chess-overlay" onclick="if(event.target===this)closeChessGame()" style="
+  display:none; position:fixed; inset:0; z-index:10000;
+  background:rgba(0,0,0,.92); flex-direction:column;
+  align-items:center; justify-content:center; padding:.75rem; overflow-y:auto;
+">
+  <div style="background:#1a1a2e; border:1px solid #2d2d4e; border-radius:18px;
+    width:100%; max-width:420px; box-shadow:0 24px 64px rgba(0,0,0,.8); overflow:hidden;">
+
+    <!-- Başlık -->
+    <div style="padding:.9rem 1.1rem; border-bottom:1px solid #2d2d4e;
+      display:flex; align-items:center; justify-content:space-between;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span style="font-size:1.3rem;">♟️</span>
+        <div>
+          <div style="font-weight:700; font-size:.93rem; color:#fff;">Satranç</div>
+          <div id="chess-status-bar" style="font-size:.72rem; color:rgba(255,255,255,.5); margin-top:1px;">Yapay zekaya karşı oyna</div>
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <!-- Zorluk seçici -->
+        <div style="display:flex; gap:4px;">
+          <button onclick="setChessDiff(1,this)" class="chess-diff-btn" style="
+            background:rgba(255,255,255,.18); border:1px solid rgba(255,255,255,.3);
+            color:#fff; border-radius:6px; padding:3px 9px; font-size:.72rem;
+            font-weight:700; cursor:pointer;">Kolay</button>
+          <button onclick="setChessDiff(2,this)" class="chess-diff-btn" style="
+            background:none; border:1px solid rgba(255,255,255,.15);
+            color:rgba(255,255,255,.5); border-radius:6px; padding:3px 9px;
+            font-size:.72rem; font-weight:700; cursor:pointer;">Orta</button>
+          <button onclick="setChessDiff(3,this)" class="chess-diff-btn" style="
+            background:none; border:1px solid rgba(255,255,255,.15);
+            color:rgba(255,255,255,.5); border-radius:6px; padding:3px 9px;
+            font-size:.72rem; font-weight:700; cursor:pointer;">Zor</button>
+        </div>
+        <button onclick="closeChessGame()" style="
+          background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.2);
+          color:#fff; border-radius:8px; width:30px; height:30px;
+          cursor:pointer; font-size:.85rem;">✕</button>
+      </div>
+    </div>
+
+    <!-- Tahta -->
+    <div style="padding:.75rem; display:flex; flex-direction:column; align-items:center;">
+      <div id="chess-board" style="
+        display:grid; grid-template-columns:repeat(8,1fr);
+        width:100%; aspect-ratio:1; border-radius:8px; overflow:hidden;
+        border:2px solid #2d2d4e; cursor:pointer; user-select:none;
+        -webkit-tap-highlight-color:transparent;
+      "></div>
+
+      <!-- Alt bilgi -->
+      <div style="width:100%; display:flex; justify-content:space-between;
+        align-items:center; margin-top:.65rem; padding:0 2px;">
+        <div style="font-size:.75rem; color:rgba(255,255,255,.4);" id="chess-move-count">Hamle: 0</div>
+        <button onclick="newChessGame()" style="
+          background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.2);
+          color:#fff; border-radius:8px; padding:5px 14px;
+          font-size:.78rem; font-weight:600; cursor:pointer;">↺ Yeni Oyun</button>
+        <div style="font-size:.75rem; color:rgba(255,255,255,.4);" id="chess-captured"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ REFLEKS TESTİ — MODAL ══ -->
+<div id="reflex-overlay" style="
+  display:none; position:fixed; inset:0; z-index:10000;
+  background:rgba(5,2,15,.97); flex-direction:column;
+  align-items:center; justify-content:center; padding:1rem;
+">
+  <!-- Başlık -->
+  <div style="width:100%; max-width:420px; display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem;">
+    <div style="display:flex; align-items:center; gap:8px;">
+      <span style="font-size:1.2rem;">⚡</span>
+      <span style="font-weight:700; font-size:.95rem; color:#fff;">Refleks Testi</span>
+    </div>
+    <div style="display:flex; align-items:center; gap:14px;">
+      <!-- Canlar -->
+      <div id="reflex-lives" style="font-size:1.3rem; letter-spacing:2px;"></div>
+      <!-- Skor -->
+      <div style="text-align:center;">
+        <div style="font-size:.6rem; color:rgba(255,255,255,.4); text-transform:uppercase; letter-spacing:.8px;">Skor</div>
+        <div id="reflex-score" style="font-size:1.1rem; font-weight:800; color:#a78bfa; font-family:monospace;">0</div>
+      </div>
+      <!-- En iyi -->
+      <div style="text-align:center;">
+        <div style="font-size:.6rem; color:rgba(255,255,255,.4); text-transform:uppercase; letter-spacing:.8px;">En İyi</div>
+        <div id="reflex-best" style="font-size:1.1rem; font-weight:800; color:var(--amber); font-family:monospace;">0</div>
+      </div>
+      <button onclick="closeReflexGame()" style="
+        background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.2);
+        color:#fff; border-radius:8px; width:32px; height:32px;
+        cursor:pointer; font-size:.85rem;">✕</button>
+    </div>
+  </div>
+
+  <!-- Seviye & Zaman çubuğu -->
+  <div style="width:100%; max-width:420px; margin-bottom:.75rem;">
+    <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+      <span id="reflex-level-label" style="font-size:.72rem; color:rgba(255,255,255,.45); font-weight:600;">SEVİYE 1</span>
+      <span id="reflex-round-label" style="font-size:.72rem; color:rgba(255,255,255,.45);">Tur 0 / 10</span>
+    </div>
+    <div style="background:rgba(255,255,255,.08); border-radius:4px; height:5px; overflow:hidden;">
+      <div id="reflex-timer-bar" style="height:100%; background:#a78bfa; border-radius:4px; width:100%; transition:width linear;"></div>
+    </div>
+  </div>
+
+  <!-- Talimat -->
+  <div id="reflex-instruction" style="
+    font-size:1.05rem; font-weight:800; color:#fff;
+    text-align:center; margin-bottom:1.1rem; min-height:1.6rem;
+    letter-spacing:.3px;
+  "></div>
+
+  <!-- 2×2 Grid -->
+  <div id="reflex-grid" style="
+    display:grid; grid-template-columns:1fr 1fr; gap:12px;
+    width:100%; max-width:380px;
+  "></div>
+
+  <!-- Geri bildirim -->
+  <div id="reflex-feedback" style="
+    margin-top:.9rem; font-size:1.2rem; font-weight:800;
+    min-height:2rem; text-align:center; transition:opacity .2s;
+  "></div>
+
+  <!-- Başlangıç / Bitti ekranı -->
+  <div id="reflex-screen" style="
+    position:absolute; inset:0; background:rgba(5,2,15,.97);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    padding:2rem; text-align:center;
+  ">
+    <div id="reflex-screen-icon" style="font-size:3.5rem; margin-bottom:.75rem;">⚡</div>
+    <div id="reflex-screen-title" style="font-size:1.4rem; font-weight:800; color:#fff; margin-bottom:.5rem;">Refleks Testi</div>
+    <div id="reflex-screen-desc" style="font-size:.88rem; color:rgba(255,255,255,.55); margin-bottom:1.5rem; line-height:1.65; max-width:300px;"></div>
+    <button id="reflex-screen-btn" onclick="reflexStartGame()" style="
+      background:#a78bfa; border:none; border-radius:12px;
+      color:#0b0020; font-size:.95rem; font-weight:800;
+      padding:12px 36px; cursor:pointer;
+    ">▶ Başla</button>
+  </div>
+</div>
+
+<!-- ══ YILAN OYUNU — MODAL ══ -->
+<div id="snake-overlay" style="
+  display:none; position:fixed; inset:0; z-index:10000;
+  background:rgba(0,0,0,.92); flex-direction:column;
+  align-items:center; justify-content:center; gap:0;
+">
+  <!-- Başlık çubuğu -->
+  <div style="
+    width:min(380px,96vw); display:flex; align-items:center;
+    justify-content:space-between; padding:.6rem .75rem .5rem;
+  ">
+    <div style="display:flex; align-items:center; gap:8px;">
+      <span style="font-size:1.2rem;">🐍</span>
+      <span style="font-weight:700; font-size:.95rem; color:#fff;">Yılan</span>
+    </div>
+    <div style="display:flex; align-items:center; gap:16px;">
+      <div style="text-align:center;">
+        <div style="font-size:.62rem; color:rgba(255,255,255,.4); text-transform:uppercase; letter-spacing:.8px;">Skor</div>
+        <div id="snake-score" style="font-size:1.1rem; font-weight:800; color:#4ade80; font-family:monospace;">0</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="font-size:.62rem; color:rgba(255,255,255,.4); text-transform:uppercase; letter-spacing:.8px;">En İyi</div>
+        <div id="snake-best" style="font-size:1.1rem; font-weight:800; color:var(--amber); font-family:monospace;">0</div>
+      </div>
+      <button onclick="closeSnakeGame()" style="
+        background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.2);
+        color:#fff; border-radius:8px; width:32px; height:32px;
+        cursor:pointer; font-size:.85rem; display:flex; align-items:center; justify-content:center;
+      ">✕</button>
+    </div>
+  </div>
+
+  <!-- Canvas -->
+  <canvas id="snake-canvas" width="380" height="380" style="
+    border:2px solid rgba(74,222,128,.3); border-radius:12px;
+    display:block; max-width:96vw; max-height:60vw;
+    image-rendering:pixelated;
+  "></canvas>
+
+  <!-- Mesaj / Başlat -->
+  <div id="snake-msg" style="
+    margin-top:.9rem; text-align:center;
+  ">
+    <div id="snake-msg-text" style="font-size:1rem; color:#fff; font-weight:700; margin-bottom:.5rem;">Hazır mısın?</div>
+    <button id="snake-start-btn" onclick="snakeStartGame()" style="
+      background:#4ade80; border:none; border-radius:10px;
+      color:#0a1a0f; font-size:.9rem; font-weight:800;
+      padding:10px 28px; cursor:pointer; transition:opacity .15s;
+    ">▶ Başla</button>
+  </div>
+
+  <!-- D-Pad — büyük, parmak dostu -->
+  <div style="
+    margin-top:.75rem;
+    display:grid;
+    grid-template-columns:80px 80px 80px;
+    grid-template-rows:70px 70px;
+    gap:6px;
+  ">
+    <!-- Üst satır: [boş] [▲] [boş] -->
+    <div></div>
+    <button onpointerdown="snakeSetDir(0,-1)" style="
+      background:rgba(255,255,255,.14); border:2px solid rgba(255,255,255,.22);
+      border-radius:16px; color:#fff; font-size:1.6rem; cursor:pointer;
+      display:flex; align-items:center; justify-content:center;
+      -webkit-tap-highlight-color:transparent; user-select:none;
+      transition:background .1s, transform .08s;
+      active-background:rgba(74,222,128,.3);
+    "
+    onpointerdown="this.style.background='rgba(74,222,128,.25)';this.style.transform='scale(.93)';snakeSetDir(0,-1)"
+    onpointerup="this.style.background='rgba(255,255,255,.14)';this.style.transform='scale(1)'"
+    onpointerleave="this.style.background='rgba(255,255,255,.14)';this.style.transform='scale(1)'">▲</button>
+    <div></div>
+    <!-- Alt satır: [◀] [▼] [▶] -->
+    <button onpointerdown="snakeSetDir(-1,0)" style="
+      background:rgba(255,255,255,.14); border:2px solid rgba(255,255,255,.22);
+      border-radius:16px; color:#fff; font-size:1.6rem; cursor:pointer;
+      display:flex; align-items:center; justify-content:center;
+      -webkit-tap-highlight-color:transparent; user-select:none;
+    "
+    onpointerdown="this.style.background='rgba(74,222,128,.25)';this.style.transform='scale(.93)';snakeSetDir(-1,0)"
+    onpointerup="this.style.background='rgba(255,255,255,.14)';this.style.transform='scale(1)'"
+    onpointerleave="this.style.background='rgba(255,255,255,.14)';this.style.transform='scale(1)'">◀</button>
+    <button onpointerdown="snakeSetDir(0,1)" style="
+      background:rgba(255,255,255,.14); border:2px solid rgba(255,255,255,.22);
+      border-radius:16px; color:#fff; font-size:1.6rem; cursor:pointer;
+      display:flex; align-items:center; justify-content:center;
+      -webkit-tap-highlight-color:transparent; user-select:none;
+    "
+    onpointerdown="this.style.background='rgba(74,222,128,.25)';this.style.transform='scale(.93)';snakeSetDir(0,1)"
+    onpointerup="this.style.background='rgba(255,255,255,.14)';this.style.transform='scale(1)'"
+    onpointerleave="this.style.background='rgba(255,255,255,.14)';this.style.transform='scale(1)'">▼</button>
+    <button onpointerdown="snakeSetDir(1,0)" style="
+      background:rgba(255,255,255,.14); border:2px solid rgba(255,255,255,.22);
+      border-radius:16px; color:#fff; font-size:1.6rem; cursor:pointer;
+      display:flex; align-items:center; justify-content:center;
+      -webkit-tap-highlight-color:transparent; user-select:none;
+    "
+    onpointerdown="this.style.background='rgba(74,222,128,.25)';this.style.transform='scale(.93)';snakeSetDir(1,0)"
+    onpointerup="this.style.background='rgba(255,255,255,.14)';this.style.transform='scale(1)'"
+    onpointerleave="this.style.background='rgba(255,255,255,.14)';this.style.transform='scale(1)'">▶</button>
   </div>
 </div>
 
@@ -5794,7 +6095,7 @@ document.addEventListener('click', function(e) {
         <span style="font-size:1.3rem;">🏃</span>
         <div>
           <div style="font-weight:700; font-size:.95rem;">Ofis Koşucusu</div>
-          <div style="font-size:.72rem; color:var(--muted);">Boşluk / ↑ / Ekrana dokun = Zıpla</div>
+          <div style="font-size:.72rem; color:var(--muted);">Boşluk / ↑ / Zıpla butonu = Zıpla</div>
         </div>
       </div>
       <div style="display:flex; align-items:center; gap:12px;">
@@ -5843,6 +6144,28 @@ document.addEventListener('click', function(e) {
         <div style="font-size:.62rem; color:var(--muted); text-transform:uppercase; letter-spacing:1px;">Mesafe</div>
         <div id="runner-dist-display" style="font-size:.9rem; font-weight:700; color:var(--amber); font-variant-numeric:tabular-nums;">0m</div>
       </div>
+    </div>
+
+    <!-- Zıplama butonu -->
+    <div style="padding:.75rem 1.25rem 1rem; border-top:1px solid var(--border);">
+      <button
+        onpointerdown="runnerJumpBtn()"
+        style="
+          width:100%; height:72px; border-radius:16px;
+          background:linear-gradient(135deg,rgba(245,166,35,.18),rgba(245,166,35,.08));
+          border:2px solid rgba(245,166,35,.45);
+          color:var(--amber); font-size:1.6rem; font-weight:800;
+          cursor:pointer; letter-spacing:1px;
+          display:flex; align-items:center; justify-content:center; gap:10px;
+          -webkit-tap-highlight-color:transparent; user-select:none;
+          transition:background .1s, transform .08s;
+        "
+        onpointerdown="this.style.background='rgba(245,166,35,.3)';this.style.transform='scale(.97)';runnerJumpBtn()"
+        onpointerup="this.style.background='linear-gradient(135deg,rgba(245,166,35,.18),rgba(245,166,35,.08))';this.style.transform='scale(1)'"
+        onpointerleave="this.style.background='linear-gradient(135deg,rgba(245,166,35,.18),rgba(245,166,35,.08))';this.style.transform='scale(1)'">
+        <span style="font-size:1.8rem;">🦘</span>
+        <span style="font-size:1.1rem;">ZIPla</span>
+      </button>
     </div>
   </div>
 </div>
@@ -6436,6 +6759,10 @@ document.addEventListener('click', function(e) {
   }
 
   // ─── Oyun başlat / bitir ─────────────────────────────────────────
+  window.runnerJumpBtn = function() {
+    jump();
+  };
+
   window.runnerStart = function() {
     document.getElementById('runner-screen').style.display = 'none';
     init();
@@ -6976,7 +7303,6 @@ function updateGameHubLockState() {
   if (!card || !banner) return;
 
   if (onBreak) {
-    // Aktif
     card.style.opacity  = '1';
     card.style.cursor   = 'pointer';
     banner.style.display = 'none';
@@ -6984,7 +7310,6 @@ function updateGameHubLockState() {
     icon.style.background = 'linear-gradient(135deg,#1a3a5c,#0b1929)';
     arrow.innerHTML     = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="9 18 15 12 9 6"/></svg>';
   } else {
-    // Kilitli
     card.style.opacity  = '0.45';
     card.style.cursor   = 'not-allowed';
     banner.style.display = 'flex';
@@ -6992,15 +7317,664 @@ function updateGameHubLockState() {
     icon.style.background = 'var(--panel)';
     arrow.innerHTML     = '';
   }
+
+  // Refleks kartı kilit durumu
+  var reflexCard  = document.getElementById('game-card-reflex');
+  var reflexIcon  = document.getElementById('game-card-reflex-icon');
+  var reflexArrow = document.getElementById('game-card-reflex-arrow');
+  if (reflexCard) {
+    if (onBreak) {
+      reflexCard.style.opacity = '1'; reflexCard.style.cursor = 'pointer';
+      if (reflexIcon)  { reflexIcon.textContent = '⚡'; reflexIcon.style.background = 'linear-gradient(135deg,#3b1a5c,#0b1929)'; }
+      if (reflexArrow) reflexArrow.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="9 18 15 12 9 6"/></svg>';
+    } else {
+      reflexCard.style.opacity = '0.45'; reflexCard.style.cursor = 'not-allowed';
+      if (reflexIcon)  { reflexIcon.textContent = '🔒'; reflexIcon.style.background = 'var(--panel)'; }
+      if (reflexArrow) reflexArrow.innerHTML = '';
+    }
+  }
+
+  // Yılan kartı kilit durumu
+  var snakeCard  = document.getElementById('game-card-snake');
+  var snakeIcon  = document.getElementById('game-card-snake-icon');
+  var snakeArrow = document.getElementById('game-card-snake-arrow');
+  if (snakeCard) {
+    if (onBreak) {
+      snakeCard.style.opacity = '1'; snakeCard.style.cursor = 'pointer';
+      if (snakeIcon)  { snakeIcon.textContent = '🐍'; snakeIcon.style.background = 'linear-gradient(135deg,#0f3320,#0b1929)'; }
+      if (snakeArrow) snakeArrow.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="9 18 15 12 9 6"/></svg>';
+    } else {
+      snakeCard.style.opacity = '0.45'; snakeCard.style.cursor = 'not-allowed';
+      if (snakeIcon)  { snakeIcon.textContent = '🔒'; snakeIcon.style.background = 'var(--panel)'; }
+      if (snakeArrow) snakeArrow.innerHTML = '';
+    }
+  }
+
+  // Satranç kartı kilit durumu
+  var chessCard  = document.getElementById('game-card-chess');
+  var chessIcon  = document.getElementById('game-card-chess-icon');
+  var chessArrow = document.getElementById('game-card-chess-arrow');
+  if (chessCard) {
+    if (onBreak) {
+      chessCard.style.opacity = '1'; chessCard.style.cursor = 'pointer';
+      if (chessIcon)  { chessIcon.textContent = '♟️'; chessIcon.style.background = 'linear-gradient(135deg,#1a1a2e,#16213e)'; }
+      if (chessArrow) chessArrow.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="9 18 15 12 9 6"/></svg>';
+    } else {
+      chessCard.style.opacity = '0.45'; chessCard.style.cursor = 'not-allowed';
+      if (chessIcon)  { chessIcon.textContent = '🔒'; chessIcon.style.background = 'var(--panel)'; }
+      if (chessArrow) chessArrow.innerHTML = '';
+    }
+  }
 }
 
-// Kart tıklama: molada ise oyunu aç, değilse bir şey yapma
+function gameCardChessClick() {
+  if (state && state.isOnBreak) { closeGameHub(); openChessGame(); }
+}
+
+function gameCardReflexClick() {
+  if (state && state.isOnBreak) { closeGameHub(); openReflexGame(); }
+}
+
+// ── REFLEKS TESTİ ─────────────────────────────────────────────────────────────
+(function() {
+  var BEST_KEY = 'lufer_reflex_best';
+
+  var SHAPES = ['circle','square','triangle','star','diamond'];
+  var SHAPE_LABELS = { circle:'Daire', square:'Kare', triangle:'Üçgen', star:'Yıldız', diamond:'Elmas' };
+  var COLORS = [
+    { id:'red',    label:'Kırmızı', hex:'#f87171' },
+    { id:'blue',   label:'Mavi',    hex:'#60a5fa' },
+    { id:'green',  label:'Yeşil',   hex:'#4ade80' },
+    { id:'yellow', label:'Sarı',    hex:'#fbbf24' },
+    { id:'purple', label:'Mor',     hex:'#c084fc' },
+  ];
+
+  // Rozet tanımları — her seviye için unvan + renk
+  var BADGES = [
+    { label:'Çaylak',   icon:'🐣', color:'#94a3b8' },
+    { label:'Hızlı',    icon:'⚡', color:'#60a5fa' },
+    { label:'Keskin',   icon:'🔥', color:'#fb923c' },
+    { label:'Şimşek',   icon:'🌩️', color:'#c084fc' },
+    { label:'Efsane',   icon:'👑', color:'#fbbf24' },
+  ];
+
+  // Seviye başına süre (ms), tur sayısı ve hayalet mod
+  var LEVELS = [
+    { time: 3000, rounds: 8,  ghost: false },
+    { time: 2400, rounds: 8,  ghost: false },
+    { time: 1800, rounds: 10, ghost: true  },  // Seviye 3'ten hayalet mod başlar
+    { time: 1300, rounds: 10, ghost: true  },
+    { time: 900,  rounds: 12, ghost: true  },
+  ];
+
+  var lives, score, level, round, totalRounds, timerMs, timerInterval;
+  var targetShape, targetColor, answered, best;
+  var roundStartTime, ghostTimer;
+  var reactionTimes = [];   // tüm tur reaksiyon süreleri
+  var highestBadge = 0;     // kazanılan en yüksek rozet indeksi
+
+  function rnd(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+  function shuffle(a) {
+    for (var i = a.length-1; i > 0; i--) { var j = Math.floor(Math.random()*(i+1)); var t=a[i];a[i]=a[j];a[j]=t; }
+    return a;
+  }
+
+  // SVG şekil çizici
+  function shapeSVG(shape, color, size) {
+    var s = size || 64; var h = s/2;
+    switch(shape) {
+      case 'circle':
+        return '<circle cx="'+h+'" cy="'+h+'" r="'+(h-4)+'" fill="'+color+'"/>';
+      case 'square':
+        return '<rect x="6" y="6" width="'+(s-12)+'" height="'+(s-12)+'" rx="8" fill="'+color+'"/>';
+      case 'triangle':
+        return '<polygon points="'+h+',6 '+(s-6)+','+(s-6)+' 6,'+(s-6)+'" fill="'+color+'"/>';
+      case 'star':
+        var pts = '';
+        for (var i=0;i<10;i++) {
+          var r2 = i%2===0 ? h-5 : h*0.42;
+          var a = (i*36-90)*Math.PI/180;
+          pts += (h+r2*Math.cos(a)).toFixed(1)+','+(h+r2*Math.sin(a)).toFixed(1)+' ';
+        }
+        return '<polygon points="'+pts.trim()+'" fill="'+color+'"/>';
+      case 'diamond':
+        return '<polygon points="'+h+',5 '+(s-5)+','+h+' '+h+','+(s-5)+' 5,'+h+'" fill="'+color+'"/>';
+    }
+    return '';
+  }
+
+  function cardHTML(shape, color, idx) {
+    var svg = '<svg width="72" height="72" viewBox="0 0 72 72" xmlns="http://www.w3.org/2000/svg">'
+      + shapeSVG(shape, color, 72) + '</svg>';
+    return '<button onclick="reflexPick('+idx+')" style="'
+      + 'background:rgba(255,255,255,.07); border:2px solid rgba(255,255,255,.15); border-radius:18px;'
+      + 'padding:1rem; cursor:pointer; display:flex; align-items:center; justify-content:center;'
+      + 'transition:transform .1s, border-color .1s, opacity .3s; -webkit-tap-highlight-color:transparent;'
+      + 'aspect-ratio:1;" '
+      + 'onpointerdown="this.style.transform=\'scale(.93)\'" '
+      + 'onpointerup="this.style.transform=\'scale(1)\'" '
+      + 'onpointerleave="this.style.transform=\'scale(1)\'" '
+      + 'data-shape="'+shape+'" data-color="'+color+'">'
+      + svg + '</button>';
+  }
+
+  function setScreen(icon, title, desc, btnText) {
+    var s = document.getElementById('reflex-screen');
+    if (s) s.style.display = 'flex';
+    var el = document.getElementById('reflex-screen-icon'); if (el) el.innerHTML = icon;
+    var tl = document.getElementById('reflex-screen-title'); if (tl) tl.textContent = title;
+    var dl = document.getElementById('reflex-screen-desc'); if (dl) dl.innerHTML = desc;
+    var bl = document.getElementById('reflex-screen-btn'); if (bl) bl.textContent = btnText;
+  }
+
+  function hideScreen() {
+    var s = document.getElementById('reflex-screen');
+    if (s) s.style.display = 'none';
+  }
+
+  function badgeHTML(idx) {
+    var b = BADGES[Math.min(idx, BADGES.length-1)];
+    return '<span style="display:inline-flex;align-items:center;gap:5px;'
+      + 'background:' + b.color + '22;border:1px solid ' + b.color + ';'
+      + 'border-radius:20px;padding:3px 12px;font-size:.82rem;font-weight:700;color:' + b.color + ';">'
+      + b.icon + ' ' + b.label + '</span>';
+  }
+
+  function updateHUD() {
+    var lvEl  = document.getElementById('reflex-level-label');
+    var rnEl  = document.getElementById('reflex-round-label');
+    var scEl  = document.getElementById('reflex-score');
+    var lvEl2 = document.getElementById('reflex-lives');
+    var isGhost = LEVELS[level] && LEVELS[level].ghost;
+    if (lvEl)  lvEl.innerHTML = 'SEVİYE ' + (level+1)
+      + (isGhost ? ' <span style="font-size:.65rem;color:#c084fc;margin-left:4px;">👻 HAYALET</span>' : '');
+    if (rnEl)  rnEl.textContent = 'Tur ' + round + ' / ' + totalRounds;
+    if (scEl)  scEl.textContent = score;
+    if (lvEl2) lvEl2.textContent = '❤️'.repeat(lives) + '🖤'.repeat(Math.max(0, 3-lives));
+  }
+
+  function nextRound() {
+    if (ghostTimer) { clearTimeout(ghostTimer); ghostTimer = null; }
+    if (answered !== undefined) {
+      round++;
+      if (round > totalRounds) { nextLevel(); return; }
+    }
+    answered = undefined;
+    var fb = document.getElementById('reflex-feedback');
+    if (fb) { fb.textContent = ''; fb.style.opacity = '0'; }
+
+    // Hedef seç
+    targetShape = rnd(SHAPES);
+    targetColor = rnd(COLORS);
+
+    // 4 kart — hedef + 3 distraktör
+    var pool = [{ shape: targetShape, color: targetColor.hex, isTarget: true }];
+    var used = [{ shape: targetShape, color: targetColor.hex }];
+    var attempts = 0;
+    while (pool.length < 4 && attempts < 50) {
+      attempts++;
+      var s2 = rnd(SHAPES), c2 = rnd(COLORS);
+      if (!used.some(function(u){ return u.shape === s2 && u.color === c2.hex; })) {
+        pool.push({ shape: s2, color: c2.hex, isTarget: false });
+        used.push({ shape: s2, color: c2.hex });
+      }
+    }
+    shuffle(pool);
+
+    // Grid render
+    var grid = document.getElementById('reflex-grid');
+    if (grid) grid.innerHTML = pool.map(function(p, i){ return cardHTML(p.shape, p.color, i); }).join('');
+
+    // Talimat
+    var inst = document.getElementById('reflex-instruction');
+    if (inst) inst.innerHTML = '<span style="color:'+targetColor.hex+'">'+targetColor.label+'</span>'
+      + ' <strong>'+SHAPE_LABELS[targetShape]+'</strong>\'e dokun!';
+
+    // Hayalet mod — şekiller 650ms sonra kaybolur ama butonlar tıklanabilir kalır
+    if (LEVELS[level] && LEVELS[level].ghost) {
+      ghostTimer = setTimeout(function() {
+        var btns = document.querySelectorAll('#reflex-grid button svg');
+        btns.forEach(function(svg){ svg.style.opacity = '0'; });
+      }, 650);
+    }
+
+    // Reaksiyon sayacı başlat
+    roundStartTime = Date.now();
+    startTimer();
+    updateHUD();
+  }
+
+  function startTimer() {
+    if (timerInterval) clearTimeout(timerInterval);
+    timerMs = LEVELS[level].time;
+    var bar = document.getElementById('reflex-timer-bar');
+    if (bar) {
+      bar.style.transition = 'none';
+      bar.style.width = '100%';
+      bar.style.background = '#a78bfa';
+      setTimeout(function(){
+        bar.style.transition = 'width ' + timerMs + 'ms linear';
+        bar.style.width = '0%';
+      }, 30);
+    }
+    timerInterval = setTimeout(function() {
+      if (answered !== undefined) return;
+      answered = false;
+      showFeedback(false, true, 0);
+      loseLife();
+    }, timerMs);
+  }
+
+  function stopTimer() {
+    if (timerInterval) clearTimeout(timerInterval);
+    if (ghostTimer) { clearTimeout(ghostTimer); ghostTimer = null; }
+    var bar = document.getElementById('reflex-timer-bar');
+    if (bar) bar.style.transition = 'none';
+  }
+
+  function reactionLabel(ms) {
+    if (ms < 300)  return { text:'Efsane ⚡', color:'#fbbf24' };
+    if (ms < 500)  return { text:'Hızlı 🔥',  color:'#4ade80' };
+    if (ms < 800)  return { text:'İyi 👍',    color:'#60a5fa' };
+    if (ms < 1200) return { text:'Ortalama',  color:'#94a3b8' };
+    return { text:'Yavaş 🐌', color:'#f87171' };
+  }
+
+  function showFeedback(correct, timeout, reactionMs) {
+    var fb = document.getElementById('reflex-feedback');
+    if (!fb) return;
+    fb.style.opacity = '1';
+    if (correct) {
+      var rl = reactionLabel(reactionMs);
+      fb.innerHTML = '✅ Doğru! <span style="font-size:.85rem;color:' + rl.color + ';margin-left:6px;">'
+        + reactionMs + 'ms — ' + rl.text + '</span>';
+      fb.style.color = '#4ade80';
+    } else if (timeout) {
+      fb.textContent = '⏰ Süre doldu!';
+      fb.style.color = '#f87171';
+    } else {
+      fb.textContent = '❌ Yanlış!';
+      fb.style.color = '#f87171';
+    }
+  }
+
+  function loseLife() {
+    lives--;
+    updateHUD();
+    if (lives <= 0) { setTimeout(gameOver, 700); }
+    else            { setTimeout(nextRound, 900); }
+  }
+
+  window.reflexPick = function(idx) {
+    if (answered !== undefined) return;
+    var reactionMs = Date.now() - roundStartTime;
+    stopTimer();
+    var grid = document.getElementById('reflex-grid');
+    if (!grid) return;
+    var btns = grid.querySelectorAll('button');
+    var btn  = btns[idx];
+    if (!btn) return;
+    // Şekiller kaybolmuşsa tekrar görünür yap (hayalet mod)
+    var allSvgs = grid.querySelectorAll('button svg');
+    allSvgs.forEach(function(svg){ svg.style.opacity = '1'; });
+    var shape = btn.dataset.shape;
+    var color = btn.dataset.color;
+    var correct = shape === targetShape && color === targetColor.hex;
+    answered = correct;
+
+    if (correct) {
+      btn.style.borderColor = '#4ade80';
+      btn.style.background  = 'rgba(74,222,128,.15)';
+      reactionTimes.push(reactionMs);
+      // Hıza göre puan: <300ms=20, <500ms=15, <800ms=12, diğer=10
+      var pts = reactionMs < 300 ? 20 : reactionMs < 500 ? 15 : reactionMs < 800 ? 12 : 10;
+      score += pts;
+      updateHUD();
+      showFeedback(true, false, reactionMs);
+      setTimeout(nextRound, 700);
+    } else {
+      btn.style.borderColor = '#f87171';
+      btn.style.background  = 'rgba(248,113,113,.15)';
+      showFeedback(false, false, 0);
+      loseLife();
+    }
+  };
+
+  function nextLevel() {
+    highestBadge = Math.max(highestBadge, level);
+    level++;
+    if (level >= LEVELS.length) { saveAndShowEnd(true); return; }
+    round = 1;
+    totalRounds = LEVELS[level].rounds;
+    var badge = BADGES[Math.min(level-1, BADGES.length-1)];
+    var isNextGhost = LEVELS[level].ghost;
+    setScreen('🎉',
+      'Seviye ' + level + ' Tamamlandı!',
+      badgeHTML(level-1) + '<br><br>'
+      + 'Skor: <strong style="color:#a78bfa">' + score + '</strong><br><br>'
+      + (isNextGhost
+        ? '<span style="color:#c084fc;font-size:.85rem;">👻 Dikkat: Hayalet Mod başlıyor!<br>Şekiller kısa süre sonra kaybolacak.</span>'
+        : 'Seviye ' + (level+1) + ' başlıyor…'),
+      '▶ Devam');
+    document.getElementById('reflex-screen-btn').onclick = function() {
+      hideScreen(); nextRound();
+    };
+  }
+
+  function gameOver() { saveAndShowEnd(false); }
+
+  function saveAndShowEnd(win) {
+    best = parseInt(localStorage.getItem(BEST_KEY) || '0');
+    if (score > best) { best = score; localStorage.setItem(BEST_KEY, score); }
+    var bestEl = document.getElementById('reflex-best');
+    if (bestEl) bestEl.textContent = best;
+
+    // Ortalama reaksiyon süresi
+    var avgMs = reactionTimes.length > 0
+      ? Math.round(reactionTimes.reduce(function(a,b){return a+b;},0) / reactionTimes.length)
+      : 0;
+    var bestMs = reactionTimes.length > 0 ? Math.min.apply(null, reactionTimes) : 0;
+
+    var earnedBadge = Math.max(highestBadge, win ? LEVELS.length-1 : level-1);
+    var icon  = win ? '🏆' : '💀';
+    var title = win ? 'Efsane! Tüm Seviyeler!' : 'Oyun Bitti!';
+    var desc  = badgeHTML(earnedBadge) + '<br><br>'
+      + 'Skor: <strong style="color:#a78bfa;font-size:1.3rem">' + score + '</strong>'
+      + (score >= best && score > 0 ? ' <span style="color:var(--amber)">🎉 Rekor!</span>' : '') + '<br>'
+      + (avgMs > 0
+        ? '<span style="font-size:.8rem;color:rgba(255,255,255,.5);">Ort. reaksiyon: ' + avgMs + 'ms'
+          + (bestMs > 0 ? ' · En hızlı: ' + bestMs + 'ms' : '') + '</span><br>'
+        : '')
+      + '<span style="font-size:.8rem;color:rgba(255,255,255,.35);">En yüksek: ' + best + '</span>';
+
+    setScreen(icon, title, desc, '▶ Tekrar Oyna');
+    document.getElementById('reflex-screen-btn').onclick = reflexStartGame;
+  }
+
+  window.openReflexGame = function() {
+    best = parseInt(localStorage.getItem(BEST_KEY) || '0');
+    var bestEl = document.getElementById('reflex-best');
+    if (bestEl) bestEl.textContent = best;
+    document.getElementById('reflex-overlay').style.display = 'flex';
+    setScreen('⚡', 'Refleks Testi',
+      'Talimatı oku, doğru <strong>renk ve şekle</strong> hızlıca dokun!<br><br>'
+      + '❤️ 3 can &nbsp;·&nbsp; 5 seviye &nbsp;·&nbsp; artan hız<br>'
+      + '👻 Seviye 3\'ten itibaren <strong style="color:#c084fc">Hayalet Mod</strong> — şekiller kaybolur!<br>'
+      + '<span style="font-size:.8rem;color:rgba(255,255,255,.4)">Hızlı seçim daha fazla puan verir</span>',
+      '▶ Başla');
+    document.getElementById('reflex-screen-btn').onclick = reflexStartGame;
+  };
+
+  window.closeReflexGame = function() {
+    if (timerInterval) clearTimeout(timerInterval);
+    if (ghostTimer) clearTimeout(ghostTimer);
+    document.getElementById('reflex-overlay').style.display = 'none';
+  };
+
+  window.reflexStartGame = function() {
+    lives = 3; score = 0; level = 0; round = 1;
+    totalRounds = LEVELS[0].rounds;
+    reactionTimes = []; highestBadge = 0;
+    var scEl = document.getElementById('reflex-score');
+    if (scEl) scEl.textContent = '0';
+    hideScreen();
+    updateHUD();
+    nextRound();
+  };
+})();
+
+function gameCardSnakeClick() {
+  if (state && state.isOnBreak) {
+    closeGameHub();
+    openSnakeGame();
+  }
+}
+
+// Kart tıklama: molada ise oyunu aç
 function gameCardClick() {
   if (state && state.isOnBreak) {
     closeGameHub();
     openRunnerGame();
   }
 }
+
+// ── YILAN OYUNU ───────────────────────────────────────────────────────────────
+(function() {
+  var SNAKE_BEST_KEY = 'lufer_snake_best';
+  var COLS = 19, ROWS = 19;
+  var CELL, canvas, ctx;
+  var snake, dir, nextDir, food, score, best, running, paused, animId;
+  var touchStartX, touchStartY;
+
+  function init() {
+    canvas = document.getElementById('snake-canvas');
+    if (!canvas) return;
+    ctx    = canvas.getContext('2d');
+    var sz = Math.min(canvas.width, canvas.height);
+    CELL   = Math.floor(sz / COLS);
+    best   = parseInt(localStorage.getItem(SNAKE_BEST_KEY) || '0');
+    var bestEl = document.getElementById('snake-best');
+    if (bestEl) bestEl.textContent = best;
+  }
+
+  function resetGame() {
+    var mid = Math.floor(COLS / 2);
+    snake   = [{x: mid, y: mid}, {x: mid - 1, y: mid}, {x: mid - 2, y: mid}];
+    dir     = {x: 1, y: 0};
+    nextDir = {x: 1, y: 0};
+    score   = 0;
+    running = false;
+    paused  = false;
+    placeFood();
+    var scoreEl = document.getElementById('snake-score');
+    if (scoreEl) scoreEl.textContent = '0';
+    drawFrame();
+    showMsg('Hazır mısın?', 'Başla', 'snakeStartGame()');
+  }
+
+  function placeFood() {
+    var free = [];
+    for (var x = 0; x < COLS; x++) {
+      for (var y = 0; y < ROWS; y++) {
+        if (!snake.some(function(s){ return s.x === x && s.y === y; })) {
+          free.push({x: x, y: y});
+        }
+      }
+    }
+    food = free[Math.floor(Math.random() * free.length)] || {x: 0, y: 0};
+  }
+
+  // Tüm tarayıcılarda çalışan yuvarlak köşeli dikdörtgen
+  function drawRoundRect(ctx, x, y, w, h, r) {
+    if (ctx.roundRect) {
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, r);
+    } else {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      ctx.lineTo(x + r, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+    }
+  }
+
+  function drawFrame() {
+    if (!ctx) return;
+    var W = COLS * CELL, H = ROWS * CELL;
+    // Arka plan
+    ctx.fillStyle = '#071a0f';
+    ctx.fillRect(0, 0, W, H);
+
+    // Grid çizgileri
+    ctx.strokeStyle = 'rgba(74,222,128,.06)';
+    ctx.lineWidth = 0.5;
+    for (var x = 0; x <= COLS; x++) { ctx.beginPath(); ctx.moveTo(x*CELL,0); ctx.lineTo(x*CELL,H); ctx.stroke(); }
+    for (var y = 0; y <= ROWS; y++) { ctx.beginPath(); ctx.moveTo(0,y*CELL); ctx.lineTo(W,y*CELL); ctx.stroke(); }
+
+    // Yem
+    ctx.fillStyle = '#f87171';
+    ctx.beginPath();
+    ctx.arc(food.x*CELL + CELL/2, food.y*CELL + CELL/2, CELL/2 - 2, 0, Math.PI*2);
+    ctx.fill();
+    // Yem parlaması
+    ctx.fillStyle = 'rgba(248,113,113,.3)';
+    ctx.beginPath();
+    ctx.arc(food.x*CELL + CELL/2, food.y*CELL + CELL/2, CELL/2, 0, Math.PI*2);
+    ctx.fill();
+
+    // Yılan
+    snake.forEach(function(seg, i) {
+      var ratio = 1 - i / snake.length * 0.5;
+      ctx.fillStyle = i === 0
+        ? '#4ade80'
+        : 'rgba(74,' + Math.round(180 * ratio) + ',120,' + (ratio * 0.9 + 0.1) + ')';
+      var pad = i === 0 ? 1 : 2;
+      drawRoundRect(ctx, seg.x*CELL + pad, seg.y*CELL + pad, CELL - pad*2, CELL - pad*2, i===0 ? 4 : 3);
+      ctx.fill();
+    });
+
+    // Baş gözleri
+    var head = snake[0];
+    ctx.fillStyle = '#0a2010';
+    var ex = head.x*CELL + CELL/2 + dir.x*3;
+    var ey = head.y*CELL + CELL/2 + dir.y*3;
+    ctx.beginPath(); ctx.arc(ex + dir.y*3, ey - dir.x*3, 2, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(ex - dir.y*3, ey + dir.x*3, 2, 0, Math.PI*2); ctx.fill();
+  }
+
+  var lastTime = 0, interval = 130;
+
+  function gameLoop(ts) {
+    if (!running || paused) return;
+    animId = requestAnimationFrame(gameLoop);
+    if (ts - lastTime < interval) return;
+    lastTime = ts;
+
+    dir = {x: nextDir.x, y: nextDir.y};
+    var head = {x: snake[0].x + dir.x, y: snake[0].y + dir.y};
+
+    // Duvar → karşı duvardan çık (wrap-around)
+    head.x = (head.x + COLS) % COLS;
+    head.y = (head.y + ROWS) % ROWS;
+
+    // Kendine çarpma
+    if (snake.some(function(s){ return s.x === head.x && s.y === head.y; })) { gameOver(); return; }
+
+    snake.unshift(head);
+
+    if (head.x === food.x && head.y === food.y) {
+      score++;
+      interval = Math.max(55, 130 - score * 4); // hızlan
+      var scoreEl = document.getElementById('snake-score');
+      if (scoreEl) scoreEl.textContent = score;
+      placeFood();
+    } else {
+      snake.pop();
+    }
+
+    drawFrame();
+  }
+
+  function gameOver() {
+    running = false;
+    cancelAnimationFrame(animId);
+    if (score > best) {
+      best = score;
+      localStorage.setItem(SNAKE_BEST_KEY, best);
+      var bestEl = document.getElementById('snake-best');
+      if (bestEl) bestEl.textContent = best;
+    }
+    showMsg('Oyun Bitti! Skor: ' + score, 'Tekrar Oyna', 'snakeStartGame()');
+  }
+
+  function showMsg(text, btnText, btnAction) {
+    var msgEl  = document.getElementById('snake-msg');
+    var textEl = document.getElementById('snake-msg-text');
+    var btn    = document.getElementById('snake-start-btn');
+    if (msgEl)  msgEl.style.display   = 'block';
+    if (textEl) textEl.textContent    = text;
+    if (btn)    { btn.textContent = btnText; btn.setAttribute('onclick', btnAction); }
+  }
+
+  function hideMsg() {
+    var msgEl = document.getElementById('snake-msg');
+    if (msgEl) msgEl.style.display = 'none';
+  }
+
+  window.openSnakeGame = function() {
+    document.getElementById('snake-overlay').style.display = 'flex';
+    init();
+    resetGame();
+    // Klavye kontrolü
+    document.addEventListener('keydown', snakeKeyHandler);
+    // Touch kaydırma
+    canvas = document.getElementById('snake-canvas');
+    if (canvas) {
+      canvas.addEventListener('touchstart', snakeTouchStart, {passive: true});
+      canvas.addEventListener('touchend',   snakeTouchEnd,   {passive: true});
+    }
+  };
+
+  window.closeSnakeGame = function() {
+    running = false;
+    paused  = false;
+    if (animId) cancelAnimationFrame(animId);
+    document.getElementById('snake-overlay').style.display = 'none';
+    document.removeEventListener('keydown', snakeKeyHandler);
+  };
+
+  window.snakeStartGame = function() {
+    if (running) { running = false; if (animId) cancelAnimationFrame(animId); }
+    init();
+    var mid = Math.floor(COLS / 2);
+    snake   = [{x: mid, y: mid}, {x: mid-1, y: mid}, {x: mid-2, y: mid}];
+    dir     = {x: 1, y: 0};
+    nextDir = {x: 1, y: 0};
+    score   = 0;
+    interval = 130;
+    running  = true;
+    paused   = false;
+    placeFood();
+    var scoreEl = document.getElementById('snake-score');
+    if (scoreEl) scoreEl.textContent = '0';
+    hideMsg();
+    lastTime = 0;
+    animId = requestAnimationFrame(gameLoop);
+  };
+
+  window.snakeSetDir = function(x, y) {
+    // 180° dönüşü engelle
+    if (x !== 0 && dir.x !== 0) return;
+    if (y !== 0 && dir.y !== 0) return;
+    nextDir = {x: x, y: y};
+  };
+
+  function snakeKeyHandler(e) {
+    var map = {ArrowUp:[0,-1], ArrowDown:[0,1], ArrowLeft:[-1,0], ArrowRight:[1,0],
+               w:[0,-1], s:[0,1], a:[-1,0], d:[1,0]};
+    var d = map[e.key];
+    if (d) { e.preventDefault(); snakeSetDir(d[0], d[1]); }
+    if (e.key === ' ' || e.key === 'Escape') {
+      if (running) { paused = !paused; if (!paused) { lastTime=0; animId=requestAnimationFrame(gameLoop); } }
+    }
+  }
+
+  function snakeTouchStart(e) { touchStartX = e.touches[0].clientX; touchStartY = e.touches[0].clientY; }
+  function snakeTouchEnd(e) {
+    if (touchStartX === undefined) return;
+    var dx = e.changedTouches[0].clientX - touchStartX;
+    var dy = e.changedTouches[0].clientY - touchStartY;
+    if (Math.abs(dx) < 20 && Math.abs(dy) < 20) return;
+    if (Math.abs(dx) > Math.abs(dy)) snakeSetDir(dx > 0 ? 1 : -1, 0);
+    else snakeSetDir(0, dy > 0 ? 1 : -1);
+  }
+})();
 
 function gameCardHoverIn(el) {
   if (state && state.isOnBreak) {
@@ -8171,6 +9145,477 @@ function showOnboardingAgain() {
       });
     }
   } catch(e) {}
+})();
+
+// ── SATRANÇ OYUNU ─────────────────────────────────────────────────────────────
+(function() {
+
+  // Taş sembolleri
+  // SVG tabanlı dolu taş çizicisi
+  function pieceSVG(piece) {
+    var col = piece[0], t = piece[1];
+    var f  = col === 'w' ? '#f0e8d0' : '#2a1a0e';
+    var s  = col === 'w' ? '#7a5c1e' : '#c47a3a';
+    var sw = col === 'w' ? '1.4' : '1.2';
+    var d = '';
+
+    if (t === 'P') {
+      d = '<ellipse cx="16" cy="27" rx="8.5" ry="3" fill="'+f+'" stroke="'+s+'" stroke-width="'+sw+'"/>'
+        + '<rect x="13" y="23.5" width="6" height="3" fill="'+f+'" stroke="none"/>'
+        + '<line x1="12.5" y1="24" x2="19.5" y2="24" stroke="'+s+'" stroke-width="'+sw+'"/>'
+        + '<line x1="12.5" y1="27" x2="19.5" y2="27" stroke="none"/>'
+        + '<ellipse cx="16" cy="18" rx="5.5" ry="6" fill="'+f+'" stroke="'+s+'" stroke-width="'+sw+'"/>'
+        + '<circle cx="16" cy="12" r="4" fill="'+f+'" stroke="'+s+'" stroke-width="'+sw+'"/>';
+    } else if (t === 'R') {
+      d = '<ellipse cx="16" cy="27.5" rx="8" ry="2.5" fill="'+f+'" stroke="'+s+'" stroke-width="'+sw+'"/>'
+        + '<rect x="9.5" y="23" width="13" height="5" rx="1" fill="'+f+'" stroke="'+s+'" stroke-width="'+sw+'"/>'
+        + '<rect x="11" y="12" width="10" height="12" fill="'+f+'" stroke="'+s+'" stroke-width="'+sw+'"/>'
+        + '<rect x="9.5" y="10" width="13" height="3" fill="'+f+'" stroke="'+s+'" stroke-width="'+sw+'"/>'
+        + '<rect x="9.5" y="7" width="2.8" height="5" rx="1" fill="'+f+'" stroke="'+s+'" stroke-width="'+sw+'"/>'
+        + '<rect x="14.6" y="7" width="2.8" height="5" rx="1" fill="'+f+'" stroke="'+s+'" stroke-width="'+sw+'"/>'
+        + '<rect x="19.7" y="7" width="2.8" height="5" rx="1" fill="'+f+'" stroke="'+s+'" stroke-width="'+sw+'"/>';
+    } else if (t === 'N') {
+      d = '<ellipse cx="16" cy="27.5" rx="8" ry="2.5" fill="'+f+'" stroke="'+s+'" stroke-width="'+sw+'"/>'
+        + '<rect x="10" y="23" width="12" height="5" rx="1" fill="'+f+'" stroke="'+s+'" stroke-width="'+sw+'"/>'
+        + '<path d="M12 23 C11 19 10 15 11 12 C12 9 13 7 16 6 C19 5 21 6 22 8 C23 10 22 12 20 13 C22 13 23 16 22 19 C21 22 20 23 18 23 Z" fill="'+f+'" stroke="'+s+'" stroke-width="'+sw+'"/>'
+        + '<circle cx="15" cy="9.5" r="1.3" fill="'+s+'"/>'
+        + '<path d="M13 14 C14 13 16 13 17 14" fill="none" stroke="'+s+'" stroke-width="1"/>';
+    } else if (t === 'B') {
+      d = '<ellipse cx="16" cy="27.5" rx="8" ry="2.5" fill="'+f+'" stroke="'+s+'" stroke-width="'+sw+'"/>'
+        + '<rect x="10" y="23" width="12" height="5" rx="1" fill="'+f+'" stroke="'+s+'" stroke-width="'+sw+'"/>'
+        + '<ellipse cx="16" cy="19" rx="5" ry="4.5" fill="'+f+'" stroke="'+s+'" stroke-width="'+sw+'"/>'
+        + '<ellipse cx="16" cy="14" rx="4" ry="4.5" fill="'+f+'" stroke="'+s+'" stroke-width="'+sw+'"/>'
+        + '<circle cx="16" cy="9" r="2.8" fill="'+f+'" stroke="'+s+'" stroke-width="'+sw+'"/>'
+        + '<circle cx="16" cy="6.5" r="1.3" fill="'+s+'"/>'
+        + '<line x1="13.5" y1="23" x2="18.5" y2="23" stroke="'+s+'" stroke-width="1.2"/>';
+    } else if (t === 'Q') {
+      d = '<ellipse cx="16" cy="27.5" rx="9" ry="2.5" fill="'+f+'" stroke="'+s+'" stroke-width="'+sw+'"/>'
+        + '<path d="M8 23 C8 17 10 14 16 13 C22 14 24 17 24 23 Z" fill="'+f+'" stroke="'+s+'" stroke-width="'+sw+'"/>'
+        + '<line x1="8" y1="23" x2="24" y2="23" stroke="'+s+'" stroke-width="1.2"/>'
+        + '<circle cx="16" cy="8.5" r="2.5" fill="'+f+'" stroke="'+s+'" stroke-width="'+sw+'"/>'
+        + '<circle cx="9"  cy="11"  r="2"   fill="'+f+'" stroke="'+s+'" stroke-width="'+sw+'"/>'
+        + '<circle cx="23" cy="11"  r="2"   fill="'+f+'" stroke="'+s+'" stroke-width="'+sw+'"/>'
+        + '<circle cx="11.5" cy="8" r="1.8" fill="'+f+'" stroke="'+s+'" stroke-width="'+sw+'"/>'
+        + '<circle cx="20.5" cy="8" r="1.8" fill="'+f+'" stroke="'+s+'" stroke-width="'+sw+'"/>';
+    } else if (t === 'K') {
+      d = '<ellipse cx="16" cy="27.5" rx="9" ry="2.5" fill="'+f+'" stroke="'+s+'" stroke-width="'+sw+'"/>'
+        + '<path d="M8 23 C8 17 10 15 16 14 C22 15 24 17 24 23 Z" fill="'+f+'" stroke="'+s+'" stroke-width="'+sw+'"/>'
+        + '<line x1="8" y1="23" x2="24" y2="23" stroke="'+s+'" stroke-width="1.2"/>'
+        + '<rect x="14.5" y="5" width="3" height="10" rx="1.5" fill="'+f+'" stroke="'+s+'" stroke-width="'+sw+'"/>'
+        + '<rect x="11.5" y="8" width="9" height="3"  rx="1.5" fill="'+f+'" stroke="'+s+'" stroke-width="'+sw+'"/>';
+    }
+
+    return '<svg width="100%" height="100%" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">' + d + '</svg>';
+  }
+
+  // Başlangıç tahtası [satır][sütun] → 'bR' gibi veya null
+  var INIT = [
+    ['bR','bN','bB','bQ','bK','bB','bN','bR'],
+    ['bP','bP','bP','bP','bP','bP','bP','bP'],
+    [null,null,null,null,null,null,null,null],
+    [null,null,null,null,null,null,null,null],
+    [null,null,null,null,null,null,null,null],
+    [null,null,null,null,null,null,null,null],
+    ['wP','wP','wP','wP','wP','wP','wP','wP'],
+    ['wR','wN','wB','wQ','wK','wB','wN','wR']
+  ];
+
+  var board, turn, selected, validMoves, gameOver, moveCount;
+  var castleRights; // {wK,wQ,bK,bQ}
+  var enPassant;    // hedef kare veya null
+  var difficulty = 1; // 1=kolay 2=orta 3=zor
+  var thinking = false;
+
+  function cloneBoard(b) {
+    return b.map(function(r){ return r.slice(); });
+  }
+
+  function color(p) { return p ? p[0] : null; }
+  function type(p)  { return p ? p[1] : null; }
+  function enemy(c) { return c === 'w' ? 'b' : 'w'; }
+
+  // Hamle üreteci — kare (r,c) için geçerli hedefleri döndür
+  function genMoves(b, r, c, cr, ep, skipKingCheck) {
+    var p = b[r][c];
+    if (!p) return [];
+    var col = color(p), t = type(p);
+    var moves = [];
+
+    function add(tr, tc) {
+      if (tr < 0 || tr > 7 || tc < 0 || tc > 7) return false;
+      var target = b[tr][tc];
+      if (target && color(target) === col) return false;
+      moves.push([tr, tc]);
+      return !target; // boşsa devam
+    }
+
+    if (t === 'P') {
+      var dir = col === 'w' ? -1 : 1;
+      var startRow = col === 'w' ? 6 : 1;
+      // İleri
+      if (!b[r+dir] || !b[r+dir][c]) {
+        moves.push([r+dir, c]);
+        if (r === startRow && !b[r+2*dir][c]) moves.push([r+2*dir, c]);
+      }
+      // Çapraz yeme
+      [c-1, c+1].forEach(function(tc) {
+        if (tc >= 0 && tc <= 7) {
+          var tr = r + dir;
+          if (b[tr] && b[tr][tc] && color(b[tr][tc]) !== col) moves.push([tr, tc]);
+          if (ep && ep[0] === tr && ep[1] === tc) moves.push([tr, tc]);
+        }
+      });
+    } else if (t === 'N') {
+      [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]].forEach(function(d){
+        add(r+d[0], c+d[1]);
+      });
+    } else if (t === 'B' || t === 'Q') {
+      [[-1,-1],[-1,1],[1,-1],[1,1]].forEach(function(d){
+        var rr=r+d[0], rc=c+d[1];
+        while(rr>=0&&rr<=7&&rc>=0&&rc<=7) { if(!add(rr,rc)) break; rr+=d[0]; rc+=d[1]; }
+      });
+    }
+    if (t === 'R' || t === 'Q') {
+      [[-1,0],[1,0],[0,-1],[0,1]].forEach(function(d){
+        var rr=r+d[0], rc=c+d[1];
+        while(rr>=0&&rr<=7&&rc>=0&&rc<=7) { if(!add(rr,rc)) break; rr+=d[0]; rc+=d[1]; }
+      });
+    }
+    if (t === 'K') {
+      [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]].forEach(function(d){
+        add(r+d[0], c+d[1]);
+      });
+      // Rok
+      if (!skipKingCheck && cr) {
+        var row = col === 'w' ? 7 : 0;
+        if (r === row && c === 4) {
+          if (cr[col+'K'] && !b[row][5] && !b[row][6] &&
+              b[row][7] === col+'R' && !isAttacked(b,row,4,enemy(col)) &&
+              !isAttacked(b,row,5,enemy(col)) && !isAttacked(b,row,6,enemy(col))) {
+            moves.push([row, 6]);
+          }
+          if (cr[col+'Q'] && !b[row][3] && !b[row][2] && !b[row][1] &&
+              b[row][0] === col+'R' && !isAttacked(b,row,4,enemy(col)) &&
+              !isAttacked(b,row,3,enemy(col)) && !isAttacked(b,row,2,enemy(col))) {
+            moves.push([row, 2]);
+          }
+        }
+      }
+    }
+    // Şah kontrolü filtresi
+    if (!skipKingCheck) {
+      moves = moves.filter(function(m) {
+        var nb = applyMove(b, r, c, m[0], m[1], cr, ep);
+        return !inCheck(nb.board, col);
+      });
+    }
+    return moves;
+  }
+
+  function isAttacked(b, r, c, byColor) {
+    for (var i=0;i<8;i++) for (var j=0;j<8;j++) {
+      if (b[i][j] && color(b[i][j]) === byColor) {
+        var ms = genMoves(b,i,j,null,null,true);
+        if (ms.some(function(m){ return m[0]===r&&m[1]===c; })) return true;
+      }
+    }
+    return false;
+  }
+
+  function findKing(b, col) {
+    for (var i=0;i<8;i++) for (var j=0;j<8;j++)
+      if (b[i][j] === col+'K') return [i,j];
+    return null;
+  }
+
+  function inCheck(b, col) {
+    var k = findKing(b, col);
+    return k ? isAttacked(b, k[0], k[1], enemy(col)) : false;
+  }
+
+  function applyMove(b, fr, fc, tr, tc, cr, ep) {
+    var nb = cloneBoard(b);
+    var p = nb[fr][fc];
+    var col = color(p), t = type(p);
+    var newCr = cr ? {wK:cr.wK, wQ:cr.wQ, bK:cr.bK, bQ:cr.bQ} : {wK:true,wQ:true,bK:true,bQ:true};
+    var newEp = null;
+
+    // En passant yeme
+    if (t === 'P' && ep && tc === ep[1] && tr === ep[0]) {
+      var capRow = col === 'w' ? tr+1 : tr-1;
+      nb[capRow][tc] = null;
+    }
+
+    // Rok
+    if (t === 'K') {
+      newCr[col+'K'] = false; newCr[col+'Q'] = false;
+      if (Math.abs(tc-fc) === 2) {
+        var rookCol = tc === 6 ? 7 : 0;
+        var rookDest = tc === 6 ? 5 : 3;
+        nb[tr][rookDest] = nb[tr][rookCol];
+        nb[tr][rookCol] = null;
+      }
+    }
+    if (t === 'R') {
+      if (fc === 0) newCr[col+'Q'] = false;
+      if (fc === 7) newCr[col+'K'] = false;
+    }
+
+    // İki kare piyonla en passant hakkı
+    if (t === 'P' && Math.abs(tr-fr) === 2) {
+      newEp = [(fr+tr)/2, tc];
+    }
+
+    // Piyon terfisi (otomatik vezir)
+    nb[tr][tc] = (t === 'P' && (tr === 0 || tr === 7)) ? col+'Q' : p;
+    nb[fr][fc] = null;
+
+    return { board: nb, castleRights: newCr, enPassant: newEp };
+  }
+
+  function allMoves(b, col, cr, ep) {
+    var moves = [];
+    for (var i=0;i<8;i++) for (var j=0;j<8;j++) {
+      if (b[i][j] && color(b[i][j]) === col) {
+        var ms = genMoves(b,i,j,cr,ep,false);
+        ms.forEach(function(m){ moves.push({fr:i,fc:j,tr:m[0],tc:m[1]}); });
+      }
+    }
+    return moves;
+  }
+
+  // Tahta değerlendirme
+  var PIECE_VAL = {P:100, N:320, B:330, R:500, Q:900, K:20000};
+  var PST = {
+    P: [[ 0, 0, 0, 0, 0, 0, 0, 0],[50,50,50,50,50,50,50,50],
+        [10,10,20,30,30,20,10,10],[ 5, 5,10,25,25,10, 5, 5],
+        [ 0, 0, 0,20,20, 0, 0, 0],[ 5,-5,-10, 0, 0,-10,-5, 5],
+        [ 5,10,10,-20,-20,10,10, 5],[ 0, 0, 0, 0, 0, 0, 0, 0]],
+    N: [[-50,-40,-30,-30,-30,-30,-40,-50],[-40,-20, 0, 0, 0, 0,-20,-40],
+        [-30, 0,10,15,15,10, 0,-30],[-30, 5,15,20,20,15, 5,-30],
+        [-30, 0,15,20,20,15, 0,-30],[-30, 5,10,15,15,10, 5,-30],
+        [-40,-20, 0, 5, 5, 0,-20,-40],[-50,-40,-30,-30,-30,-30,-40,-50]],
+    B: [[-20,-10,-10,-10,-10,-10,-10,-20],[-10, 0, 0, 0, 0, 0, 0,-10],
+        [-10, 0, 5,10,10, 5, 0,-10],[-10, 5, 5,10,10, 5, 5,-10],
+        [-10, 0,10,10,10,10, 0,-10],[-10,10,10,10,10,10,10,-10],
+        [-10, 5, 0, 0, 0, 0, 5,-10],[-20,-10,-10,-10,-10,-10,-10,-20]],
+    R: [[ 0, 0, 0, 0, 0, 0, 0, 0],[ 5,10,10,10,10,10,10, 5],
+        [-5, 0, 0, 0, 0, 0, 0,-5],[-5, 0, 0, 0, 0, 0, 0,-5],
+        [-5, 0, 0, 0, 0, 0, 0,-5],[-5, 0, 0, 0, 0, 0, 0,-5],
+        [-5, 0, 0, 0, 0, 0, 0,-5],[ 0, 0, 0, 5, 5, 0, 0, 0]],
+    Q: [[-20,-10,-10,-5,-5,-10,-10,-20],[-10, 0, 0, 0, 0, 0, 0,-10],
+        [-10, 0, 5, 5, 5, 5, 0,-10],[-5, 0, 5, 5, 5, 5, 0,-5],
+        [  0, 0, 5, 5, 5, 5, 0,-5],[-10, 5, 5, 5, 5, 5, 0,-10],
+        [-10, 0, 5, 0, 0, 0, 0,-10],[-20,-10,-10,-5,-5,-10,-10,-20]],
+    K: [[-30,-40,-40,-50,-50,-40,-40,-30],[-30,-40,-40,-50,-50,-40,-40,-30],
+        [-30,-40,-40,-50,-50,-40,-40,-30],[-30,-40,-40,-50,-50,-40,-40,-30],
+        [-20,-30,-30,-40,-40,-30,-30,-20],[-10,-20,-20,-20,-20,-20,-20,-10],
+        [ 20, 20,  0,  0,  0,  0, 20, 20],[ 20, 30, 10,  0,  0, 10, 30, 20]]
+  };
+
+  function evaluate(b) {
+    var score = 0;
+    for (var i=0;i<8;i++) for (var j=0;j<8;j++) {
+      var p = b[i][j];
+      if (!p) continue;
+      var col = color(p), t = type(p);
+      var val = PIECE_VAL[t] || 0;
+      var pst = PST[t];
+      var pstVal = pst ? (col==='w' ? pst[i][j] : pst[7-i][j]) : 0;
+      score += (col==='w' ? 1 : -1) * (val + pstVal);
+    }
+    return score;
+  }
+
+  function minimax(b, depth, alpha, beta, maximizing, cr, ep) {
+    var col = maximizing ? 'b' : 'w';
+    var moves = allMoves(b, col, cr, ep);
+    if (depth === 0 || moves.length === 0) {
+      if (moves.length === 0) {
+        if (inCheck(b, col)) return maximizing ? -99999 : 99999;
+        return 0; // pat
+      }
+      return evaluate(b);
+    }
+    if (maximizing) {
+      var best = -Infinity;
+      for (var i=0; i<moves.length; i++) {
+        var m = moves[i];
+        var res = applyMove(b, m.fr, m.fc, m.tr, m.tc, cr, ep);
+        var v = minimax(res.board, depth-1, alpha, beta, false, res.castleRights, res.enPassant);
+        if (v > best) best = v;
+        if (v > alpha) alpha = v;
+        if (beta <= alpha) break;
+      }
+      return best;
+    } else {
+      var best2 = Infinity;
+      for (var i2=0; i2<moves.length; i2++) {
+        var m2 = moves[i2];
+        var res2 = applyMove(b, m2.fr, m2.fc, m2.tr, m2.tc, cr, ep);
+        var v2 = minimax(res2.board, depth-1, alpha, beta, true, res2.castleRights, res2.enPassant);
+        if (v2 < best2) best2 = v2;
+        if (v2 < beta) beta = v2;
+        if (beta <= alpha) break;
+      }
+      return best2;
+    }
+  }
+
+  function getBestMove() {
+    var moves = allMoves(board, 'b', castleRights, enPassant);
+    if (!moves.length) return null;
+    var depth = difficulty;
+    var best = null, bestVal = -Infinity;
+    // Hamleleri karıştır (eşit durumlarda çeşitlilik için)
+    moves.sort(function(){ return Math.random() - 0.5; });
+    for (var i=0; i<moves.length; i++) {
+      var m = moves[i];
+      var res = applyMove(board, m.fr, m.fc, m.tr, m.tc, castleRights, enPassant);
+      var v = minimax(res.board, depth-1, -Infinity, Infinity, false, res.castleRights, res.enPassant);
+      if (v > bestVal) { bestVal = v; best = m; }
+    }
+    return best;
+  }
+
+  // ── Render ──────────────────────────────────────────────────────────────────
+  function render() {
+    var el = document.getElementById('chess-board');
+    if (!el) return;
+    var html = '';
+    for (var r=0; r<8; r++) {
+      for (var c=0; c<8; c++) {
+        var light = (r+c) % 2 === 0;
+        var bg = light ? '#e8d5b0' : '#9e7a55';
+        var isSelected = selected && selected[0]===r && selected[1]===c;
+        var isValid = validMoves && validMoves.some(function(m){ return m[0]===r&&m[1]===c; });
+        var p = board[r][c];
+        if (isSelected) bg = '#d4c97a';
+        html += '<div onclick="chessClick('+r+','+c+')" style="'
+          + 'background:'+bg+'; display:flex; align-items:center; justify-content:center;'
+          + 'cursor:pointer; position:relative;'
+          + 'transition:background .1s; aspect-ratio:1; -webkit-tap-highlight-color:transparent;">';
+        if (isValid) {
+          html += '<div style="position:absolute; width:32%; height:32%; border-radius:50%;'
+            + 'background:rgba(0,0,0,' + (p ? '0' : '.22') + ');'
+            + (p ? 'border:3px solid rgba(0,0,0,.3); width:88%; height:88%;' : '') + '"></div>';
+        }
+        if (p) html += '<div style="position:relative;z-index:1;width:78%;height:78%;display:flex;align-items:center;justify-content:center;">' + pieceSVG(p) + '</div>';
+        html += '</div>';
+      }
+    }
+    el.innerHTML = html;
+    // Hamle sayısı
+    var mc = document.getElementById('chess-move-count');
+    if (mc) mc.textContent = 'Hamle: ' + moveCount;
+  }
+
+  function setStatus(msg, color2) {
+    var el = document.getElementById('chess-status-bar');
+    if (el) { el.textContent = msg; el.style.color = color2 || 'rgba(255,255,255,.5)'; }
+  }
+
+  window.chessClick = function(r, c) {
+    if (gameOver || thinking || turn !== 'w') return;
+    var p = board[r][c];
+
+    if (selected) {
+      // Hamle yap
+      var isValid = validMoves.some(function(m){ return m[0]===r&&m[1]===c; });
+      if (isValid) {
+        var res = applyMove(board, selected[0], selected[1], r, c, castleRights, enPassant);
+        board = res.board;
+        castleRights = res.castleRights;
+        enPassant = res.enPassant;
+        selected = null; validMoves = [];
+        moveCount++;
+        turn = 'b';
+        render();
+        checkGameState('b');
+        if (!gameOver) aiMove();
+        return;
+      }
+    }
+    // Taş seç
+    if (p && color(p) === 'w') {
+      selected = [r, c];
+      validMoves = genMoves(board, r, c, castleRights, enPassant, false);
+      setStatus('Hedef kareyi seçin', '#fff');
+    } else {
+      selected = null; validMoves = [];
+      setStatus('Sıra sizde — beyaz oynuyor', 'rgba(255,255,255,.5)');
+    }
+    render();
+  };
+
+  function aiMove() {
+    thinking = true;
+    setStatus('AI düşünüyor…', '#fbbf24');
+    render();
+    setTimeout(function() {
+      var m = getBestMove();
+      if (m) {
+        var res = applyMove(board, m.fr, m.fc, m.tr, m.tc, castleRights, enPassant);
+        board = res.board;
+        castleRights = res.castleRights;
+        enPassant = res.enPassant;
+        moveCount++;
+      }
+      turn = 'w';
+      thinking = false;
+      render();
+      checkGameState('w');
+    }, 30);
+  }
+
+  function checkGameState(col) {
+    var moves = allMoves(board, col, castleRights, enPassant);
+    if (moves.length === 0) {
+      gameOver = true;
+      if (inCheck(board, col)) {
+        var winner = col === 'w' ? 'Siyah' : 'Beyaz';
+        setStatus('♚ ' + winner + ' kazandı! Mat!', '#f87171');
+      } else {
+        setStatus('🤝 Pat — Berabere!', '#fbbf24');
+      }
+    } else if (inCheck(board, col)) {
+      setStatus((col==='w'?'⚠️ Şahınız':'⚠️ Şah') + ' tehdit altında!', '#f87171');
+    } else {
+      setStatus(col==='w' ? 'Sıra sizde — beyaz oynuyor' : 'AI oynuyor…', 'rgba(255,255,255,.5)');
+    }
+  }
+
+  window.setChessDiff = function(d, btn) {
+    difficulty = d;
+    document.querySelectorAll('.chess-diff-btn').forEach(function(b2) {
+      b2.style.background = 'none';
+      b2.style.borderColor = 'rgba(255,255,255,.15)';
+      b2.style.color = 'rgba(255,255,255,.5)';
+    });
+    btn.style.background = 'rgba(255,255,255,.18)';
+    btn.style.borderColor = 'rgba(255,255,255,.3)';
+    btn.style.color = '#fff';
+    newChessGame();
+  };
+
+  window.newChessGame = function() {
+    board = INIT.map(function(r){ return r.slice(); });
+    turn = 'w'; selected = null; validMoves = []; gameOver = false; moveCount = 0;
+    castleRights = {wK:true,wQ:true,bK:true,bQ:true}; enPassant = null;
+    thinking = false;
+    setStatus('Sıra sizde — beyaz oynuyor', 'rgba(255,255,255,.5)');
+    render();
+  };
+
+  window.openChessGame = function() {
+    document.getElementById('chess-overlay').style.display = 'flex';
+    newChessGame();
+  };
+
+  window.closeChessGame = function() {
+    document.getElementById('chess-overlay').style.display = 'none';
+  };
+
 })();
 </script>
 
