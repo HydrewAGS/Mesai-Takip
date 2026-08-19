@@ -313,6 +313,17 @@
   .btn-secondary { background: var(--panel); color: var(--text); border: 1px solid var(--border); }
 
   /* ── TODAY SUMMARY ── */
+  .summary-panel-wrap {
+    max-height: 500px;
+    opacity: 1;
+    overflow: hidden;
+    transition: max-height .35s ease, opacity .25s ease;
+  }
+  .summary-panel-wrap.collapsed {
+    max-height: 0;
+    opacity: 0;
+    transition: max-height .3s ease, opacity .15s ease;
+  }
   .summary-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -349,20 +360,6 @@
   .summary-card.green .s-value { color: var(--green); }
   .summary-card.red   .s-value { color: var(--red); }
 
-  /* ── BREAK TAB ── */
-  .break-info {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 1.25rem 1.5rem;
-    margin-bottom: 1.5rem;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    color: var(--muted);
-    font-size: .875rem;
-  }
-  .break-info .icon { font-size: 1.4rem; }
 
   /* ── LOG SECTION ── */
   .section-title {
@@ -541,8 +538,6 @@
     border-radius: 6px; transition: all .15s;
   }
   .edit-btn:hover { color: var(--amber); background: rgba(245,166,35,.1); }
-
-  .action-btns { display: flex; gap: 2px; justify-content: flex-end; }
 
   /* ── EDIT MODAL ── */
   #edit-overlay {
@@ -1054,8 +1049,7 @@
 </div>
 
 <nav>
-  <button class="tab-btn active" onclick="switchTab('work')">🏢 İş Girişi</button>
-  <button class="tab-btn" onclick="switchTab('break')">🕐 Hareketler</button>
+  <button class="tab-btn active" onclick="switchTab('work')">🏢 Hareketler</button>
   <button class="tab-btn" onclick="switchTab('records')">📋 Kayıtlar</button>
   <button class="tab-btn" onclick="switchTab('tracking')">🏖️ İzinler</button>
 </nav>
@@ -1064,28 +1058,34 @@
 
   <div class="tab-pane active" id="tab-work">
 
-    <div class="summary-grid">
-      <div class="summary-card amber">
-        <div class="s-label">Çalışma Süresi</div>
-        <div class="s-value" id="s-work">00:00</div>
-      </div>
-      <div class="summary-card green">
-        <div class="s-label">Mola Süresi</div>
-        <div class="s-value" id="s-break">00:00</div>
-        <div id="s-break-goal" style="display:none; font-size:.68rem; font-weight:600; margin-top:4px; letter-spacing:.3px;"></div>
-      </div>
-      <div class="summary-card">
-        <div class="s-label">Görev Süresi</div>
-        <div class="s-value" id="s-gorev" style="color:#6DA4E0;">00:00</div>
-      </div>
-      <div class="summary-card red">
-        <div class="s-label">Net Mesai</div>
-        <div class="s-value" id="s-net">00:00</div>
-        <div id="s-net-goal" style="display:none; font-size:.68rem; font-weight:600; margin-top:4px; letter-spacing:.3px;"></div>
+    <div class="section-title" id="summary-toggle" onclick="toggleSummaryPanel()" style="cursor:pointer; display:flex; align-items:center; justify-content:space-between; user-select:none;">
+      <span>📊 Özet</span>
+      <span id="summary-toggle-icon" style="font-size:.85rem; transition:transform .2s;">▾</span>
+    </div>
+    <div class="summary-panel-wrap" id="summary-panel-wrap">
+      <div class="summary-grid" id="summary-grid">
+        <div class="summary-card amber">
+          <div class="s-label">Çalışma Süresi</div>
+          <div class="s-value" id="s-work">00:00</div>
+        </div>
+        <div class="summary-card green">
+          <div class="s-label">Mola Süresi</div>
+          <div class="s-value" id="s-break">00:00</div>
+          <div id="s-break-goal" style="display:none; font-size:.68rem; font-weight:600; margin-top:4px; letter-spacing:.3px;"></div>
+        </div>
+        <div class="summary-card">
+          <div class="s-label">Görev Süresi</div>
+          <div class="s-value" id="s-gorev" style="color:#6DA4E0;">00:00</div>
+        </div>
+        <div class="summary-card red">
+          <div class="s-label">Net Mesai</div>
+          <div class="s-value" id="s-net">00:00</div>
+          <div id="s-net-goal" style="display:none; font-size:.68rem; font-weight:600; margin-top:4px; letter-spacing:.3px;"></div>
+        </div>
       </div>
     </div>
 
-    <div class="chrono-card">
+    <div class="chrono-card" style="padding:1.7rem 2rem;">
       <div class="chrono-label" id="work-chrono-label">Geçen Süre</div>
       <div class="chrono-time idle" id="work-chrono">00:00:00</div>
 
@@ -1105,12 +1105,44 @@
       </div>
 
       <div class="btn-group">
-        <button class="btn btn-primary" id="btn-clock-in"  onclick="clockIn()" style="font-size:.9rem;padding:13px 20px;">
+        <button class="btn btn-primary" id="btn-clock-toggle" onclick="clockToggle()" style="font-size:.9rem;padding:13px 20px;">
           ✅ İşe Giriş
         </button>
-        <button class="btn btn-danger" id="btn-clock-out" onclick="clockOut()" disabled style="font-size:.9rem;padding:13px 20px;">
-          🚪 İşten Çıkış
-        </button>
+      </div>
+    </div>
+
+    <!-- Mola & Görev sayaçları -->
+    <div style="display:flex;gap:10px;margin-bottom:12px;min-width:0;">
+      <div class="chrono-card" style="flex:1;min-width:0;padding:1.5rem 1rem;">
+        <div class="chrono-label">Görev Süresi</div>
+        <div class="chrono-time idle js-gorev-chrono" id="gorev-chrono-w" style="font-size:clamp(1.6rem,5.5vw,3rem);">00:00:00</div>
+
+        <div class="status-badge js-gorev-badge" id="gorev-status-badge-w">
+          <span class="dot"></span>
+          <span class="js-gorev-text" id="gorev-status-text-w">Görevde Değilsiniz</span>
+        </div>
+
+        <div class="btn-group" style="min-height:52px;align-items:stretch;flex-direction:column;">
+          <button class="btn btn-success js-gorev-toggle-btn" id="btn-gorev-toggle-w" onclick="gorevToggle()" style="font-size:.82rem;padding:10px 8px;">
+            🚗 Göreve Çık
+          </button>
+        </div>
+      </div>
+
+      <div class="chrono-card" style="flex:1;min-width:0;padding:1.5rem 1rem;">
+        <div class="chrono-label">Mola Süresi</div>
+        <div class="chrono-time idle js-break-chrono" id="break-chrono-w" style="font-size:clamp(1.6rem,5.5vw,3rem);">00:00:00</div>
+
+        <div class="status-badge js-break-badge" id="break-status-badge-w">
+          <span class="dot"></span>
+          <span class="js-break-text" id="break-status-text-w">Molada Değilsiniz</span>
+        </div>
+
+        <div class="btn-group" style="min-height:52px;align-items:stretch;flex-direction:column;">
+          <button class="btn btn-success js-break-toggle-btn" id="btn-break-toggle-w" onclick="breakToggle()" style="font-size:.82rem;padding:10px 8px;">
+            ☕ Molaya Çık
+          </button>
+        </div>
       </div>
     </div>
 
@@ -1119,63 +1151,6 @@
       <div class="log-empty">
         <div class="big">📋</div>
         Henüz kayıt yok. İşe giriş yaparak başlayın.
-      </div>
-    </div>
-  </div>
-
-  <div class="tab-pane" id="tab-break">
-
-    <div class="break-info">
-      <span class="icon">💡</span>
-      <span>Molaya veya göreve çıkmadan önce işe girişinizin yapılmış olması gerekir.</span>
-    </div>
-
-    <!-- Çift sayaç yan yana — mobilde taşmayacak şekilde -->
-    <div style="display:flex;gap:10px;margin-bottom:12px;min-width:0;">
-      <div class="chrono-card" style="flex:1;min-width:0;padding:1.5rem 1rem;">
-        <div class="chrono-label">Görev Süresi</div>
-        <div class="chrono-time idle" id="gorev-chrono" style="font-size:clamp(1.6rem,5.5vw,3rem);">00:00:00</div>
-
-        <div class="status-badge" id="gorev-status-badge">
-          <span class="dot"></span>
-          <span id="gorev-status-text">Görevde Değilsiniz</span>
-        </div>
-
-        <div class="btn-group" style="min-height:52px;align-items:stretch;flex-direction:column;">
-          <button class="btn btn-success" id="btn-gorev-start" onclick="gorevStart()" style="font-size:.82rem;padding:10px 8px;">
-            🚗 Göreve Çık
-          </button>
-          <button class="btn btn-secondary" id="btn-gorev-end" onclick="gorevEnd()" disabled style="font-size:.82rem;padding:10px 8px;">
-            🏠 Görevden Dön
-          </button>
-        </div>
-      </div>
-
-      <div class="chrono-card" style="flex:1;min-width:0;padding:1.5rem 1rem;">
-        <div class="chrono-label">Mola Süresi</div>
-        <div class="chrono-time idle" id="break-chrono" style="font-size:clamp(1.6rem,5.5vw,3rem);">00:00:00</div>
-
-        <div class="status-badge" id="break-status-badge">
-          <span class="dot"></span>
-          <span id="break-status-text">Molada Değilsiniz</span>
-        </div>
-
-        <div class="btn-group" style="min-height:52px;align-items:stretch;flex-direction:column;">
-          <button class="btn btn-success" id="btn-break-start" onclick="breakStart()" style="font-size:.82rem;padding:10px 8px;">
-            ☕ Molaya Çık
-          </button>
-          <button class="btn btn-secondary" id="btn-break-end" onclick="breakEnd()" disabled style="font-size:.82rem;padding:10px 8px;">
-            🔙 Moladan Dön
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <div class="section-title">Hareket Geçmişi</div>
-    <div class="log-list" id="break-log">
-      <div class="log-empty">
-        <div class="big">🚗</div>
-        Henüz hareket kaydı yok.
       </div>
     </div>
   </div>
@@ -1943,9 +1918,9 @@ setInterval(() => {
 
 function updateChronos() {
   const wEl = document.getElementById('work-chrono');
-  const bEl = document.getElementById('break-chrono');
-  const gEl = document.getElementById('gorev-chrono');
-  if (!wEl || !bEl) return;
+  const bEls = document.querySelectorAll('.js-break-chrono');
+  const gEls = document.querySelectorAll('.js-gorev-chrono');
+  if (!wEl || !bEls.length) return;
 
   const past = getTodayAccruals();
 
@@ -1965,17 +1940,13 @@ function updateChronos() {
   }
 
   if (state.isOnBreak && state.breakStart) {
-    const bElapsed = Date.now() - state.breakStart;
-    bEl.textContent = toHMS(bElapsed);
-    bEl.className = 'chrono-time break';
+    const bText = toHMS(Date.now() - state.breakStart);
+    bEls.forEach(el => { el.textContent = bText; el.className = 'chrono-time break js-break-chrono'; });
   }
 
-  if (gEl) {
-    if (state.isOnGorev && state.gorevStart) {
-      const gElapsed = Date.now() - state.gorevStart;
-      gEl.textContent = toHMS(gElapsed);
-      gEl.className = 'chrono-time working';
-    }
+  if (state.isOnGorev && state.gorevStart) {
+    const gText = toHMS(Date.now() - state.gorevStart);
+    gEls.forEach(el => { el.textContent = gText; el.className = 'chrono-time working js-gorev-chrono'; });
   }
 }
 
@@ -2154,12 +2125,41 @@ function syncUI() {
     const onGorev  = state.isOnGorev;
     const past = getTodayAccruals();
 
-    document.getElementById('btn-clock-in').disabled  = working;
-    document.getElementById('btn-clock-out').disabled = !working;
-    document.getElementById('btn-break-start').disabled = !working || onBreak || onGorev;
-    document.getElementById('btn-break-end').disabled   = !onBreak;
-    document.getElementById('btn-gorev-start').disabled = !working || onGorev || onBreak;
-    document.getElementById('btn-gorev-end').disabled   = !onGorev;
+    const clockBtn = document.getElementById('btn-clock-toggle');
+    if (clockBtn) {
+      clockBtn.disabled = false;
+      if (working) {
+        clockBtn.className = 'btn btn-danger';
+        clockBtn.innerHTML = '🚪 İşten Çıkış';
+      } else {
+        clockBtn.className = 'btn btn-primary';
+        clockBtn.innerHTML = '✅ İşe Giriş';
+      }
+    }
+
+    document.querySelectorAll('.js-break-toggle-btn').forEach(breakBtn => {
+      if (onBreak) {
+        breakBtn.disabled = false;
+        breakBtn.className = 'btn btn-secondary js-break-toggle-btn';
+        breakBtn.innerHTML = '🔙 Moladan Dön';
+      } else {
+        breakBtn.disabled = !working || onGorev;
+        breakBtn.className = 'btn btn-success js-break-toggle-btn';
+        breakBtn.innerHTML = '☕ Molaya Çık';
+      }
+    });
+
+    document.querySelectorAll('.js-gorev-toggle-btn').forEach(gorevBtn => {
+      if (onGorev) {
+        gorevBtn.disabled = false;
+        gorevBtn.className = 'btn btn-secondary js-gorev-toggle-btn';
+        gorevBtn.innerHTML = '🏠 Görevden Dön';
+      } else {
+        gorevBtn.disabled = !working || onBreak;
+        gorevBtn.className = 'btn btn-success js-gorev-toggle-btn';
+        gorevBtn.innerHTML = '🚗 Göreve Çık';
+      }
+    });
 
     const wBadge = document.getElementById('work-status-badge');
     const wText  = document.getElementById('work-status-text');
@@ -2185,38 +2185,79 @@ function syncUI() {
       if (wChrono) wChrono.className = 'chrono-time';
     }
 
-    const bBadge = document.getElementById('break-status-badge');
-    const bText  = document.getElementById('break-status-text');
-    const bChrono = document.getElementById('break-chrono');
-    if (onBreak) {
-      if (bBadge) bBadge.className = 'status-badge break';
-      if (bText) bText.textContent = 'Molada';
-      if (bChrono) bChrono.className = 'chrono-time break';
-    } else {
-      if (bBadge) bBadge.className = 'status-badge';
-      if (bText) bText.textContent = 'Molada Değilsiniz';
-      if (bChrono) {
-        bChrono.className = 'chrono-time idle';
+    document.querySelectorAll('.js-break-badge').forEach(bBadge => {
+      bBadge.className = 'status-badge js-break-badge' + (onBreak ? ' break' : '');
+    });
+    document.querySelectorAll('.js-break-text').forEach(bText => {
+      bText.textContent = onBreak ? 'Molada' : 'Molada Değilsiniz';
+    });
+    document.querySelectorAll('.js-break-chrono').forEach(bChrono => {
+      if (onBreak) {
+        bChrono.className = 'chrono-time break js-break-chrono';
+      } else {
+        bChrono.className = 'chrono-time idle js-break-chrono';
         bChrono.textContent = toHMS(past.pastBreakMs);
       }
-    }
+    });
 
-    const gBadge = document.getElementById('gorev-status-badge');
-    const gText  = document.getElementById('gorev-status-text');
-    const gChrono = document.getElementById('gorev-chrono');
-    if (gBadge && gText && gChrono) {
+    document.querySelectorAll('.js-gorev-badge').forEach(gBadge => {
+      gBadge.className = 'status-badge js-gorev-badge' + (onGorev ? ' working' : '');
+    });
+    document.querySelectorAll('.js-gorev-text').forEach(gText => {
+      gText.textContent = onGorev ? 'Görevde' : 'Görevde Değilsiniz';
+    });
+    document.querySelectorAll('.js-gorev-chrono').forEach(gChrono => {
       if (onGorev) {
-        gBadge.className = 'status-badge working';
-        gText.textContent = 'Görevde';
-        gChrono.className = 'chrono-time working';
+        gChrono.className = 'chrono-time working js-gorev-chrono';
       } else {
-        gBadge.className = 'status-badge';
-        gText.textContent = 'Görevde Değilsiniz';
-        gChrono.className = 'chrono-time idle';
+        gChrono.className = 'chrono-time idle js-gorev-chrono';
         gChrono.textContent = toHMS(past.pastGorevMs);
       }
-    }
+    });
   } catch(e) { console.error("UI Sync Hatası:", e); }
+}
+
+function clockToggle() {
+  if (state.isWorking) {
+    showConfirm('İşten çıkış yapmak istediğinize emin misiniz?', function() {
+      clockOut();
+    }, { icon: '🚪', okText: 'Evet, Çıkış Yap' });
+  } else {
+    clockIn();
+  }
+}
+
+function breakToggle() {
+  if (state.isOnBreak) breakEnd(); else breakStart();
+}
+
+function gorevToggle() {
+  if (state.isOnGorev) gorevEnd(); else gorevStart();
+}
+
+// ── ÖZET PANELİ AÇ/KAPA (animasyonlu, durum kalıcı) ─────────────
+function toggleSummaryPanel() {
+  const wrap = document.getElementById('summary-panel-wrap');
+  const icon = document.getElementById('summary-toggle-icon');
+  if (!wrap) return;
+  const collapsed = !wrap.classList.contains('collapsed');
+  wrap.classList.toggle('collapsed', collapsed);
+  if (icon) icon.style.transform = collapsed ? 'rotate(-90deg)' : 'rotate(0deg)';
+  try { localStorage.setItem('lufer_summary_collapsed', collapsed ? '1' : '0'); } catch(e) {}
+}
+
+function loadSummaryPanelState() {
+  const wrap = document.getElementById('summary-panel-wrap');
+  const icon = document.getElementById('summary-toggle-icon');
+  if (!wrap) return;
+  let collapsed = false;
+  try { collapsed = localStorage.getItem('lufer_summary_collapsed') === '1'; } catch(e) {}
+  wrap.classList.toggle('collapsed', collapsed);
+  if (icon) icon.style.transform = collapsed ? 'rotate(-90deg)' : 'rotate(0deg)';
+  // İlk yüklemede animasyon oynamasın — geçişi bir sonraki tick'e bırak
+  wrap.style.transition = 'none';
+  void wrap.offsetWidth;
+  wrap.style.transition = '';
 }
 
 function clockIn() {
@@ -2239,9 +2280,13 @@ function clockIn() {
   checkAchievements('addRecord', { type:'giris', time:pad(nowD.getHours())+':'+pad(nowD.getMinutes()), date:dateKey(), dow:nowD.getDay() });
   window._goalNotifSent = false;
 
+  // İşe giriş yapıldı — artık oyunlara sadece molada erişilebilir, açık oyunu kapat
+  const _gameClosed = closeAnyOpenGame();
+  if (typeof updateGameHubLockState === 'function') updateGameHubLockState();
+
   syncUI();
   renderTodayLog();
-  showToast('✅ İşe giriş kaydedildi – ' + nowStr());
+  showToast(_gameClosed ? '⏸ İşe giriş yapıldı, oyun kapatıldı.' : ('✅ İşe giriş kaydedildi – ' + nowStr()));
 }
 
 function clockOut() {
@@ -2279,7 +2324,6 @@ function clockOut() {
   checkAchievements('addRecord', { type:'cikis', time:pad(nowD2.getHours())+':'+pad(nowD2.getMinutes()), date:dateKey(), dow:nowD2.getDay() });
   syncUI();
   renderTodayLog();
-  renderBreakLog();
   showToast('🚪 İşten çıkış kaydedildi – ' + nowStr());
 }
 
@@ -2299,7 +2343,6 @@ function breakStart() {
   checkAchievements('breakStart', {});
   syncUI();
   renderTodayLog();
-  renderBreakLog();
   updateGameHubLockState();
   showToast('☕ Mola başladı – ' + nowStr());
 }
@@ -2313,17 +2356,12 @@ function breakEnd() {
   localStorage.setItem('lufer_deve_ilk_mola_bitti', '1');
   localStorage.setItem('lufer_deve_bitis_ts', Date.now());
   // Mola bitti — açık oyunu kapat
-  const runnerOverlay = document.getElementById('runner-overlay');
-  if (runnerOverlay && runnerOverlay.style.display !== 'none') {
-    if (typeof closeRunnerGame === 'function') closeRunnerGame();
-    showToast('⏸ Mola bitti, oyun kapatıldı.');
-  }
+  const _gameClosed = closeAnyOpenGame();
   saveState();
   syncUI();
   renderTodayLog();
-  renderBreakLog();
   updateGameHubLockState();
-  showToast('🔙 Moladan dönüldü – ' + nowStr());
+  showToast(_gameClosed ? '⏸ Mola bitti, oyun kapatıldı.' : ('🔙 Moladan dönüldü – ' + nowStr()));
 }
 
 function gorevStart() {
@@ -2333,7 +2371,6 @@ function gorevStart() {
   addRecord('gorev-bas');
   syncUI();
   renderTodayLog();
-  renderBreakLog();
   showToast('🚗 Göreve çıkıldı – ' + nowStr());
 }
 
@@ -2345,7 +2382,6 @@ function gorevEnd() {
   saveState();
   syncUI();
   renderTodayLog();
-  renderBreakLog();
   showToast('🏠 Görevden dönüldü – ' + nowStr());
 }
 
@@ -2380,40 +2416,6 @@ function renderTodayLog() {
     const delay = Math.min(idx * 40, 300);
     return `<div class="log-item record-row-anim" style="${noteHtml ? 'flex-direction:column;align-items:stretch;gap:4px;' : ''}animation-delay:${delay}ms">
       <div style="display:flex;align-items:center;justify-content:space-between;width:100%;">
-        <div class="log-type">
-          <span class="log-badge ${t.cls}"></span>
-          <span class="log-type-text">${displayName}</span>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px">
-          <span class="log-time">${r.time}</span>
-          <button class="edit-btn" onclick="openEditModal(${r.id})" title="Düzenle">✏️</button>
-        </div>
-      </div>
-      ${noteHtml}
-    </div>`;
-  }).join('');
-}
-
-function renderBreakLog() {
-  const el = document.getElementById('break-log');
-  if (!el) return;
-  const recs = todayRecords().filter(r => r && (r.type === 'mola-bas' || r.type === 'mola-bit' || r.type === 'gorev-bas' || r.type === 'gorev-bit')).sort((a, b) => (a.ts || 0) - (b.ts || 0)).reverse();
-  if (!recs.length) {
-    el.innerHTML = `<div class="log-empty"><div class="big">🚗</div>Henüz hareket kaydı yok.</div>`;
-    return;
-  }
-  el.innerHTML = recs.map((r, idx) => {
-    const t = typeLabels[r.type];
-    if (!t) return '';
-    const displayName = (r.label && r.label.trim())
-      ? `${t.icon} ${r.label}`
-      : `${t.icon} ${t.label}`;
-    const noteHtml = (r.note && r.note.trim())
-      ? `<div style="font-size:.75rem;color:var(--muted);margin-top:3px;padding-left:18px;">${r.note}</div>`
-      : '';
-    const delay = Math.min(idx * 40, 300);
-    return `<div class="log-item record-row-anim" style="flex-direction:column;align-items:stretch;gap:4px;animation-delay:${delay}ms">
-      <div style="display:flex;align-items:center;justify-content:space-between;">
         <div class="log-type">
           <span class="log-badge ${t.cls}"></span>
           <span class="log-type-text">${displayName}</span>
@@ -2810,9 +2812,12 @@ function renderDayDetail(dateStr) {
 // ── ÖZEL ONAY MODALI (confirm() yerine) ────────────────────────
 let _confirmCallback = null;
 
-function showConfirm(message, callback) {
+function showConfirm(message, callback, opts) {
+  opts = opts || {};
   _confirmCallback = callback;
   document.getElementById('confirm-message').textContent = message;
+  document.getElementById('confirm-icon').textContent = opts.icon || '🗑️';
+  document.getElementById('confirm-ok-btn').textContent = opts.okText || 'Sil';
   document.getElementById('confirm-overlay').style.display = 'flex';
 }
 
@@ -2930,7 +2935,6 @@ function saveAddRecord() {
   renderDayDetail(calSelectedDate);
   syncUI();
   renderTodayLog();
-  renderBreakLog();
   updateChronos();
   updateSummary();
 
@@ -2939,14 +2943,10 @@ function saveAddRecord() {
 }
 
 function renderRecords() {
-  // Takvim sekmesi açıldığında çağrılır
+  // Takvim sekmesi açıldığında çağrılır — grid ve seçili günün detayı her seferinde tazelenir
+  if (!calSelectedDate) calSelectedDate = dateKey();
   renderCalendar();
-  // Bugünü otomatik seç
-  if (!calSelectedDate) {
-    calSelectedDate = dateKey();
-    renderCalendar();
-    renderDayDetail(calSelectedDate);
-  }
+  renderDayDetail(calSelectedDate);
 }
 
 function deleteRecord(id) {
@@ -2988,7 +2988,6 @@ function deleteRecord(id) {
     renderCalendar();
     if (calSelectedDate) renderDayDetail(calSelectedDate);
     renderTodayLog();
-    renderBreakLog();
     updateChronos();
     updateSummary();
     showToast('🗑 Kayıt silindi.');
@@ -3101,7 +3100,6 @@ function saveEdit() {
   checkAchievements('editRecord', { type: rec.type, date: rec.date });
   syncUI();
   renderTodayLog();
-  renderBreakLog();
   renderCalendar();
   if (calSelectedDate) renderDayDetail(calSelectedDate);
   updateChronos();
@@ -3128,7 +3126,7 @@ document.addEventListener('keydown', e => {
 // ── TABS ──────────────────────────────────────────────────────
 // ── SWIPE GESTURE (Ana sekmeler arası yatay kaydırma) ────────────────────────
 (function() {
-  var TAB_ORDER = ['work', 'break', 'records', 'tracking'];
+  var TAB_ORDER = ['work', 'records', 'tracking'];
   var swipeStartX = null;
   var swipeStartY = null;
   var SWIPE_MIN_X  = 55;   // px — yatay minimum mesafe
@@ -3202,7 +3200,7 @@ document.addEventListener('keydown', e => {
 
 function switchTab(name) {
   document.querySelectorAll('.tab-btn').forEach((b,i) => {
-    const names = ['work','break','records','tracking'];
+    const names = ['work','records','tracking'];
     b.classList.toggle('active', names[i] === name);
   });
   // Önceki aktif pane'i kaldır, yenisini animasyonla göster
@@ -3295,10 +3293,12 @@ try {
 try {
   syncUI();
   renderTodayLog();
-  renderBreakLog();
+  loadSummaryPanelState();
 
-  const filterDateEl = document.getElementById('filter-date');
-  if (filterDateEl) filterDateEl.value = dateKey();
+  // "Tam İsabet" başarımı için ilk kullanım zaman damgası (bir kereye mahsus)
+  if (!localStorage.getItem('lufer_first_launch_ts')) {
+    localStorage.setItem('lufer_first_launch_ts', Date.now().toString());
+  }
 } catch(initError) {
   console.error("Başlatma hatası:", initError);
 }
@@ -4873,6 +4873,12 @@ function checkAchievements(trigger, meta) {
   // ── Başlangıç ──
   if (trigger === 'clockIn') {
     unlockAchievement('ilk_adim');
+    // Tam isabet — son düzenlemeden (veya ilk kullanımdan) bu yana 30 gün geçtiyse
+    var lastEditTs = parseInt(localStorage.getItem('lufer_last_edit_ts') || '0');
+    var baselineTs = lastEditTs || parseInt(localStorage.getItem('lufer_first_launch_ts') || '0');
+    if (baselineTs && (Date.now() - baselineTs) >= 30*24*3600*1000) {
+      unlockAchievement('tam_isabet');
+    }
   }
   if (trigger === 'clockOut') {
     unlockAchievement('ise_basladim');
@@ -5021,8 +5027,8 @@ function checkAchievements(trigger, meta) {
       localStorage.setItem('lufer_edit_types_today', JSON.stringify(editTypes));
       if (editTypes['giris'] && editTypes['cikis']) unlockAchievement('zaman_bukucu');
     }
-    // Tam isabet — bu ay hiç düzenleme yok (artık var, kontrol geç)
-    // (Bu başarım ayın sonunda değil, anlık takip zor — ay dönerinde kontrol)
+    // Tam isabet — düzenleme yapıldı, 30 günlük "hiç düzenleme yok" sayacı sıfırlanır
+    localStorage.setItem('lufer_last_edit_ts', Date.now());
   }
 }
 
@@ -5550,11 +5556,11 @@ function importJSON(event) {
     animation:modal-in .2s cubic-bezier(.34,1.56,.64,1);
     text-align:center;
   ">
-    <div style="font-size:2.2rem; margin-bottom:.75rem;">🗑️</div>
+    <div id="confirm-icon" style="font-size:2.2rem; margin-bottom:.75rem;">🗑️</div>
     <div id="confirm-message" style="font-size:.92rem; color:var(--text); line-height:1.55; margin-bottom:1.5rem;"></div>
     <div style="display:flex; gap:10px;">
       <button class="btn btn-secondary" onclick="confirmCancel()" style="flex:1;">İptal</button>
-      <button class="btn btn-danger"    onclick="confirmOk()"     style="flex:1;">Sil</button>
+      <button class="btn btn-danger" id="confirm-ok-btn" onclick="confirmOk()" style="flex:1;">Sil</button>
     </div>
   </div>
 </div>
@@ -5691,7 +5697,7 @@ document.addEventListener('click', function(e) {
         font-size:.78rem; color:#E05C5C; line-height:1.45;
       ">
         <span style="font-size:1.1rem; flex-shrink:0;">🔒</span>
-        <span>Oyunlara erişim sağlayabilmeniz için <strong>molada olmanız</strong> gerekmektedir.</span>
+        <span>Çalışma saatleri içinde oyunlara yalnızca <strong>molada</strong> iken erişebilirsiniz.</span>
       </div>
 
       <!-- Ofis Kaçışı -->
@@ -7260,16 +7266,35 @@ function closeGameHub() {
   document.getElementById('game-hub-overlay').style.display = 'none';
 }
 
+// Erişim kilitlenince (mola bitti / işe giriş yapıldı) açık kalan oyunu kapatır
+function closeAnyOpenGame() {
+  var games = [
+    { overlay: 'runner-overlay', close: 'closeRunnerGame' },
+    { overlay: 'reflex-overlay', close: 'closeReflexGame' },
+    { overlay: 'snake-overlay',  close: 'closeSnakeGame'  },
+    { overlay: 'chess-overlay',  close: 'closeChessGame'  }
+  ];
+  var closedAny = false;
+  games.forEach(function(g) {
+    var el = document.getElementById(g.overlay);
+    if (el && el.style.display !== 'none') {
+      if (typeof window[g.close] === 'function') window[g.close]();
+      closedAny = true;
+    }
+  });
+  return closedAny;
+}
+
 // Oyun kartının kilit durumunu güncelle
 function updateGameHubLockState() {
-  const onBreak = state && state.isOnBreak;
+  const unlocked = state && (state.isOnBreak || !state.isWorking);
   const card    = document.getElementById('game-card-runner');
   const banner  = document.getElementById('game-hub-lock-banner');
   const icon    = document.getElementById('game-card-runner-icon');
   const arrow   = document.getElementById('game-card-runner-arrow');
   if (!card || !banner) return;
 
-  if (onBreak) {
+  if (unlocked) {
     card.style.opacity  = '1';
     card.style.cursor   = 'pointer';
     banner.style.display = 'none';
@@ -7290,7 +7315,7 @@ function updateGameHubLockState() {
   var reflexIcon  = document.getElementById('game-card-reflex-icon');
   var reflexArrow = document.getElementById('game-card-reflex-arrow');
   if (reflexCard) {
-    if (onBreak) {
+    if (unlocked) {
       reflexCard.style.opacity = '1'; reflexCard.style.cursor = 'pointer';
       if (reflexIcon)  { reflexIcon.textContent = '⚡'; reflexIcon.style.background = 'linear-gradient(135deg,#3b1a5c,#0b1929)'; }
       if (reflexArrow) reflexArrow.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="9 18 15 12 9 6"/></svg>';
@@ -7306,7 +7331,7 @@ function updateGameHubLockState() {
   var snakeIcon  = document.getElementById('game-card-snake-icon');
   var snakeArrow = document.getElementById('game-card-snake-arrow');
   if (snakeCard) {
-    if (onBreak) {
+    if (unlocked) {
       snakeCard.style.opacity = '1'; snakeCard.style.cursor = 'pointer';
       if (snakeIcon)  { snakeIcon.textContent = '🐍'; snakeIcon.style.background = 'linear-gradient(135deg,#0f3320,#0b1929)'; }
       if (snakeArrow) snakeArrow.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="9 18 15 12 9 6"/></svg>';
@@ -7322,7 +7347,7 @@ function updateGameHubLockState() {
   var chessIcon  = document.getElementById('game-card-chess-icon');
   var chessArrow = document.getElementById('game-card-chess-arrow');
   if (chessCard) {
-    if (onBreak) {
+    if (unlocked) {
       chessCard.style.opacity = '1'; chessCard.style.cursor = 'pointer';
       if (chessIcon)  { chessIcon.textContent = '♟️'; chessIcon.style.background = 'linear-gradient(135deg,#1a1a2e,#16213e)'; }
       if (chessArrow) chessArrow.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="9 18 15 12 9 6"/></svg>';
@@ -7335,11 +7360,11 @@ function updateGameHubLockState() {
 }
 
 function gameCardChessClick() {
-  if (state && state.isOnBreak) { closeGameHub(); openChessGame(); }
+  if (state && (state.isOnBreak || !state.isWorking)) { closeGameHub(); openChessGame(); }
 }
 
 function gameCardReflexClick() {
-  if (state && state.isOnBreak) { closeGameHub(); openReflexGame(); }
+  if (state && (state.isOnBreak || !state.isWorking)) { closeGameHub(); openReflexGame(); }
 }
 
 // ── REFLEKS TESTİ ─────────────────────────────────────────────────────────────
@@ -7691,15 +7716,15 @@ function gameCardReflexClick() {
 })();
 
 function gameCardSnakeClick() {
-  if (state && state.isOnBreak) {
+  if (state && (state.isOnBreak || !state.isWorking)) {
     closeGameHub();
     openSnakeGame();
   }
 }
 
-// Kart tıklama: molada ise oyunu aç
+// Kart tıklama: molada veya işte değilken oyunu aç
 function gameCardClick() {
-  if (state && state.isOnBreak) {
+  if (state && (state.isOnBreak || !state.isWorking)) {
     closeGameHub();
     openRunnerGame();
   }
@@ -7944,7 +7969,7 @@ function gameCardClick() {
 })();
 
 function gameCardHoverIn(el) {
-  if (state && state.isOnBreak) {
+  if (state && (state.isOnBreak || !state.isWorking)) {
     el.style.borderColor = 'var(--amber)';
     el.style.background  = 'var(--hover, rgba(255,180,0,.06))';
   }
@@ -8839,7 +8864,7 @@ var ONB_SLIDES = [
   },
   {
     title: "Mola & Görev\nTakibi ☕🚗",
-    desc:  "Molaya çıktığınızda mola sayacı, saha/görev çıkışlarınızda görev sayacı devreye girer. Hareketler sekmesinden tüm hareketleri görebilirsiniz.",
+    desc:  "Molaya çıktığınızda mola sayacı, saha/görev çıkışlarınızda görev sayacı devreye girer. Bu sayaçları Hareketler sekmesinde, ana sayacın hemen altında görebilirsiniz.",
     illus: function() {
       return '<svg viewBox="0 0 200 180" fill="none" xmlns="http://www.w3.org/2000/svg">'
         + '<ellipse cx="100" cy="162" rx="80" ry="12" fill="rgba(100,185,100,.07)"/>'
